@@ -1,0 +1,22 @@
+# Node
+node_modules/
+yarn.lock
+package-lock.json
+
+# Rust
+backend/target/
+**/*.rs.bk
+
+# Expo
+frontend/.expo/
+frontend/.expo-shared/
+
+# Environment
+.env
+.env.*
+
+# macOS
+.DS_Store
+
+# Logs
+*.log

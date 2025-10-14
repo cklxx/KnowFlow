@@ -1,0 +1,487 @@
+openapi: 3.1.0
+info:
+  title: KnowFlow API
+  version: 0.1.0
+servers:
+  - url: http://localhost:3000
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /api/directions:
+    get:
+      summary: List directions
+      operationId: listDirections
+      responses:
+        '200':
+          description: Directions fetched
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Direction'
+    post:
+      summary: Create direction
+      operationId: createDirection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDirectionRequest'
+      responses:
+        '201':
+          description: Direction created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Direction'
+  /api/directions/{directionId}:
+    patch:
+      summary: Update direction
+      operationId: updateDirection
+      parameters:
+        - name: directionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDirectionRequest'
+      responses:
+        '200':
+          description: Direction updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Direction'
+        '404':
+          description: Direction not found
+    delete:
+      summary: Delete direction
+      operationId: deleteDirection
+      parameters:
+        - name: directionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Direction deleted
+        '404':
+          description: Direction not found
+  /api/directions/{directionId}/skill-points:
+    get:
+      summary: List skill points
+      operationId: listSkillPoints
+      parameters:
+        - name: directionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Skill points fetched
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SkillPoint'
+    post:
+      summary: Create skill point
+      operationId: createSkillPoint
+      parameters:
+        - name: directionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSkillPointRequest'
+      responses:
+        '201':
+          description: Skill point created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillPoint'
+  /api/skill-points/{skillPointId}:
+    patch:
+      summary: Update skill point
+      operationId: updateSkillPoint
+      parameters:
+        - name: skillPointId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSkillPointRequest'
+      responses:
+        '200':
+          description: Skill point updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillPoint'
+        '404':
+          description: Skill point not found
+    delete:
+      summary: Delete skill point
+      operationId: deleteSkillPoint
+      parameters:
+        - name: skillPointId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Skill point deleted
+        '404':
+          description: Skill point not found
+  /api/directions/{directionId}/cards:
+    get:
+      summary: List memory cards
+      operationId: listMemoryCards
+      parameters:
+        - name: directionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Memory cards fetched
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MemoryCard'
+    post:
+      summary: Create memory card
+      operationId: createMemoryCard
+      parameters:
+        - name: directionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMemoryCardRequest'
+      responses:
+        '201':
+          description: Memory card created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryCard'
+  /api/cards/{cardId}:
+    patch:
+      summary: Update memory card
+      operationId: updateMemoryCard
+      parameters:
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMemoryCardRequest'
+      responses:
+        '200':
+          description: Memory card updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryCard'
+        '404':
+          description: Memory card not found
+    delete:
+      summary: Delete memory card
+      operationId: deleteMemoryCard
+      parameters:
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Memory card deleted
+        '404':
+          description: Memory card not found
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+    Direction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        stage:
+          $ref: '#/components/schemas/DirectionStage'
+        quarterly_goal:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - stage
+        - created_at
+        - updated_at
+    CreateDirectionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        stage:
+          $ref: '#/components/schemas/DirectionStage'
+        quarterly_goal:
+          type: string
+          nullable: true
+      required:
+        - name
+        - stage
+    UpdateDirectionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        stage:
+          $ref: '#/components/schemas/DirectionStage'
+        quarterly_goal:
+          type: string
+          nullable: true
+    DirectionStage:
+      type: string
+      enum: [explore, shape, attack, stabilize]
+    SkillPoint:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        direction_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        level:
+          $ref: '#/components/schemas/SkillLevel'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - direction_id
+        - name
+        - level
+        - created_at
+        - updated_at
+    CreateSkillPointRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        level:
+          $ref: '#/components/schemas/SkillLevel'
+      required:
+        - name
+    UpdateSkillPointRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        level:
+          $ref: '#/components/schemas/SkillLevel'
+    SkillLevel:
+      type: string
+      enum: [unknown, emerging, working, fluent]
+    MemoryCard:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        direction_id:
+          type: string
+          format: uuid
+        skill_point_id:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+        body:
+          type: string
+        card_type:
+          $ref: '#/components/schemas/CardType'
+        stability:
+          type: number
+          format: float
+        relevance:
+          type: number
+          format: float
+        novelty:
+          type: number
+          format: float
+        priority:
+          type: number
+          format: float
+        next_due:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - direction_id
+        - title
+        - body
+        - card_type
+        - stability
+        - relevance
+        - novelty
+        - priority
+        - created_at
+        - updated_at
+    CreateMemoryCardRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        body:
+          type: string
+        card_type:
+          $ref: '#/components/schemas/CardType'
+        skill_point_id:
+          type: string
+          format: uuid
+          nullable: true
+        stability:
+          type: number
+          format: float
+        relevance:
+          type: number
+          format: float
+        novelty:
+          type: number
+          format: float
+        priority:
+          type: number
+          format: float
+        next_due:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - title
+        - body
+        - card_type
+    UpdateMemoryCardRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        body:
+          type: string
+        card_type:
+          $ref: '#/components/schemas/CardType'
+        skill_point_id:
+          type: string
+          format: uuid
+          nullable: true
+        stability:
+          type: number
+          format: float
+        relevance:
+          type: number
+          format: float
+        novelty:
+          type: number
+          format: float
+        priority:
+          type: number
+          format: float
+        next_due:
+          type: string
+          format: date-time
+          nullable: true
+    CardType:
+      type: string
+      enum: [fact, concept, procedure, claim]
