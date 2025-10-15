@@ -27,6 +27,8 @@ npm run start
 
 The app bootstraps Expo Router with tab navigation and a theme-aware provider stack. Further feature work lives under `src/features` following the roadmap milestones.
 
+The More tab now 提供导入工作台，可批量粘贴链接或笔记、调用 LLM 聚合主题并筛选生成的卡片草稿，再写入已选方向。
+
 ### Backend
 
 ```bash
@@ -49,10 +51,31 @@ The API currently exposes:
 - `DELETE /api/skill-points/:id` – remove a skill point and associated cards
 - `GET /api/directions/:direction_id/cards` – list memory cards for a direction
 - `POST /api/directions/:direction_id/cards` – create a memory card (`{"title":"...","body":"...","card_type":"fact"}`)
+- `GET /api/cards` – query memory cards globally via filters (`directionId`, `skillPointId`, `q`, `dueBefore`, `limit`)
+- `GET /api/cards/:id` – fetch a memory card by id
 - `PATCH /api/cards/:id` – update a memory card fields (title/body/type/metrics)
 - `DELETE /api/cards/:id` – delete a memory card
+- `GET /api/cards/:card_id/evidence` – list evidence linked to a card
+- `POST /api/cards/:card_id/evidence` – attach evidence metadata to a card
+- `DELETE /api/evidence/:id` – remove an evidence entry
+- `POST /api/onboarding/bootstrap` – 批量写入方向、技能点与选中的卡片草稿并生成今日训练计划
+- `GET /api/today` – fetch or schedule today's workout queue (up to 20 cards)
+- `POST /api/workouts/:id/done` – submit workout results (`{"results":[{"item_id":"...","result":"pass"}]}`)
+- `GET /api/progress` – retrieve aggregated metrics for the progress dashboard
+- `GET /api/tree` – fetch a direction tree snapshot with nested skill points, cards, and metrics
+- `GET /api/vault` – snapshot layered vault data (highlights, annotations, cards, evergreen notes)
+- `POST /api/import/preview` – 聚类导入材料并生成可筛选的卡片草稿预览
+- `GET /api/settings/summary` – 查看数据库路径、体积与实体数量概览
+- `GET /api/settings/export` – 导出方向、技能点、卡片、训练记录的 JSON 快照
 
 By default the server reads `DATABASE_URL` (defaults to `sqlite://./knowflow.db`) and runs embedded SQLx migrations on boot.
+
+LLM-driven generation is optional. Configure the following environment variables to enable remote calls (OpenAI-compatible by default):
+
+- `LLM_API_BASE` – API endpoint base URL (defaults to `https://api.openai.com`).
+- `LLM_MODEL` – model identifier, e.g. `gpt-4o-mini`.
+- `LLM_API_KEY` – secret token. When absent, the API falls back to heuristic card drafts.
+- `LLM_TIMEOUT_SECS` – request timeout in seconds (defaults to `30`).
 
 ## Tooling
 
@@ -63,5 +86,5 @@ By default the server reads `DATABASE_URL` (defaults to `sqlite://./knowflow.db`
 ## Next Steps
 
 1. Flesh out backend repositories, domain models, and OpenAPI surface.
-2. Implement onboarding flow screens (O-0 to O-6) using the Expo Router skeleton.
-3. Establish SQLite schema, migration tooling, and storage adapters.
+2. Extend import and sync capabilities (Share Sheet, `/sync` delta API, background refresh).
+3. Establish richer scheduling analytics (KV、UDR 趋势、到期提醒策略)。

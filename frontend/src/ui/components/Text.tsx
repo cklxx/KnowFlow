@@ -35,9 +35,9 @@ const createStyles = (theme: ThemeTokens): StyleMap =>
     },
     subtitle: {
       fontFamily: theme.typography.fontFamily,
-      color: theme.colors.textSecondary,
+      color: theme.colors.textPrimary,
       fontSize: theme.typography.headingSm,
-      fontWeight: '500',
+      fontWeight: '600',
       marginBottom: theme.spacing.sm,
     },
     body: {

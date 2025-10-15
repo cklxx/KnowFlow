@@ -1,7 +1,16 @@
 mod directions;
+mod evidence;
 mod health;
+mod import;
+mod intelligence;
 mod memory_cards;
+mod onboarding;
+mod progress;
+mod settings;
 mod skill_points;
+mod today;
+mod tree;
+mod vault;
 
 use axum::Router;
 use tower_http::cors::{Any, CorsLayer};
@@ -14,6 +23,15 @@ pub fn build_router(state: AppState) -> Router {
         .merge(directions::router())
         .merge(skill_points::router())
         .merge(memory_cards::router())
+        .merge(evidence::router())
+        .merge(intelligence::router())
+        .merge(import::router())
+        .merge(onboarding::router())
+        .merge(progress::router())
+        .merge(today::router())
+        .merge(tree::router())
+        .merge(vault::router())
+        .merge(settings::router())
         .layer(cors())
         .with_state(state)
 }
@@ -24,6 +42,7 @@ fn cors() -> CorsLayer {
             axum::http::Method::GET,
             axum::http::Method::POST,
             axum::http::Method::PATCH,
+            axum::http::Method::DELETE,
         ])
         .allow_origin(Any)
         .allow_headers(Any)

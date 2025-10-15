@@ -1,13 +1,5 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { useTheme, useToast } from '@/providers';
 import {
@@ -147,29 +139,15 @@ export const DirectionList = ({ onSelect, selectedId }: Props) => {
   }
 
   return (
-    <FlatList
-      data={data}
-      keyExtractor={(item) => item.id}
-      ItemSeparatorComponent={() => <View style={styles.separator} />}
-      ListFooterComponent={() => (
-        <DirectionForm
-          name={name}
-          onNameChange={setName}
-          stage={stage}
-          onStageChange={setStage}
-          quarterlyGoal={quarterlyGoal}
-          onQuarterlyGoalChange={setQuarterlyGoal}
-          onSubmit={handleCreate}
-          submitting={creating}
-        />
-      )}
-      renderItem={({ item }) => {
+    <View style={styles.list}>
+      {data.map((item) => {
         const isSelected = item.id === selectedId;
         const isEditing = editingId === item.id;
 
         if (isEditing) {
           return (
             <View
+              key={item.id}
               style={[
                 styles.item,
                 {
@@ -247,6 +225,7 @@ export const DirectionList = ({ onSelect, selectedId }: Props) => {
 
         return (
           <Pressable
+            key={item.id}
             onPress={() => onSelect(item.id)}
             style={[
               styles.item,
@@ -277,8 +256,19 @@ export const DirectionList = ({ onSelect, selectedId }: Props) => {
             </Pressable>
           </Pressable>
         );
-      }}
-    />
+      })}
+
+      <DirectionForm
+        name={name}
+        onNameChange={setName}
+        stage={stage}
+        onStageChange={setStage}
+        quarterlyGoal={quarterlyGoal}
+        onQuarterlyGoalChange={setQuarterlyGoal}
+        onSubmit={handleCreate}
+        submitting={creating}
+      />
+    </View>
   );
 };
 
@@ -371,14 +361,14 @@ const DirectionForm = ({
 };
 
 const styles = StyleSheet.create({
+  list: {
+    gap: 12,
+  },
   item: {
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
     gap: 8,
-  },
-  separator: {
-    height: 12,
   },
   formContainer: {
     marginTop: 16,

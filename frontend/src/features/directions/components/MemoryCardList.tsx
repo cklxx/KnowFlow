@@ -1,13 +1,5 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import {
   useCreateMemoryCard,
@@ -136,28 +128,14 @@ export const MemoryCardList = ({ directionId }: Props) => {
   }
 
   return (
-    <FlatList
-      data={data}
-      keyExtractor={(item) => item.id}
-      ItemSeparatorComponent={() => <View style={styles.separator} />}
-      ListFooterComponent={() => (
-        <MemoryCardForm
-          title={title}
-          body={body}
-          cardType={cardType}
-          onTitleChange={setTitle}
-          onBodyChange={setBody}
-          onTypeChange={setCardType}
-          onSubmit={handleCreate}
-          submitting={creating}
-        />
-      )}
-      renderItem={({ item }) => {
+    <View style={styles.list}>
+      {data.map((item) => {
         const isEditing = editingId === item.id;
 
         if (isEditing) {
           return (
             <View
+              key={item.id}
               style={[
                 styles.card,
                 {
@@ -236,6 +214,7 @@ export const MemoryCardList = ({ directionId }: Props) => {
 
         return (
           <View
+            key={item.id}
             style={[
               styles.card,
               {
@@ -255,12 +234,26 @@ export const MemoryCardList = ({ directionId }: Props) => {
             </Pressable>
           </View>
         );
-      }}
-    />
+      })}
+
+      <MemoryCardForm
+        title={title}
+        body={body}
+        cardType={cardType}
+        onTitleChange={setTitle}
+        onBodyChange={setBody}
+        onTypeChange={setCardType}
+        onSubmit={handleCreate}
+        submitting={creating}
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  list: {
+    gap: 12,
+  },
   empty: {
     gap: 16,
   },
@@ -269,9 +262,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     gap: 8,
-  },
-  separator: {
-    height: 12,
   },
   inlineInput: {
     borderWidth: 1,

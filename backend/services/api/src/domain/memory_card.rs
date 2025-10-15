@@ -87,7 +87,7 @@ impl MemoryCard {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MemoryCardDraft {
     pub skill_point_id: Option<Uuid>,
     pub title: String,

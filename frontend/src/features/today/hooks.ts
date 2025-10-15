@@ -1,17 +1,53 @@
 import { useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { useDirections, useMemoryCards } from '@/features/directions/hooks';
+import {
+  completeWorkout,
+  fetchTodayWorkout,
+  type TodayWorkoutPlan,
+  type WorkoutCompletionSummary,
+  type WorkoutResultKind,
+} from '@api';
 
-export const useTodayDigest = () => {
-  const { data: directions } = useDirections();
-  const primaryDirection = directions?.[0];
-  const { data: cards } = useMemoryCards(primaryDirection?.id);
+export type { TodayWorkoutPlan, WorkoutResultKind, WorkoutCompletionSummary } from '@api';
 
-  return useMemo(
-    () => ({
-      direction: primaryDirection,
-      cards: cards?.slice(0, 5) ?? [],
-    }),
-    [primaryDirection, cards],
+const TODAY_WORKOUT_KEY = ['today-workout'];
+
+export const useTodayWorkout = () =>
+  useQuery<TodayWorkoutPlan | null>({
+    queryKey: TODAY_WORKOUT_KEY,
+    queryFn: fetchTodayWorkout,
+  });
+
+export const useTodayItems = (workout: TodayWorkoutPlan | null) =>
+  useMemo(
+    () =>
+      workout?.segments.flatMap((segment) =>
+        segment.items.map((item) => ({
+          segment,
+          item,
+        })),
+      ) ?? [],
+    [workout],
   );
+
+export const useCompleteWorkout = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    WorkoutCompletionPayload,
+    Error,
+    { workoutId: string; results: { item_id: string; result: WorkoutResultKind }[] }
+  >({
+    mutationFn: ({ workoutId, results }) => completeWorkout(workoutId, results),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TODAY_WORKOUT_KEY });
+    },
+  });
+};
+
+export type WorkoutResultMap = Record<string, WorkoutResultKind>;
+
+export type WorkoutCompletionPayload = {
+  summary: WorkoutCompletionSummary;
 };

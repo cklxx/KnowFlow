@@ -213,7 +213,70 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MemoryCard'
+  /api/cards:
+    get:
+      summary: Search memory cards
+      operationId: searchMemoryCards
+      parameters:
+        - name: directionId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: skillPointId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: dueBefore
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        '200':
+          description: Matching memory cards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MemoryCard'
   /api/cards/{cardId}:
+    get:
+      summary: Get memory card
+      operationId: getMemoryCard
+      parameters:
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Memory card detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryCard'
+        '404':
+          description: Memory card not found
     patch:
       summary: Update memory card
       operationId: updateMemoryCard
@@ -254,8 +317,395 @@ paths:
           description: Memory card deleted
         '404':
           description: Memory card not found
+  /api/intelligence/card-drafts:
+    post:
+      summary: Generate memory card drafts from materials
+      operationId: generateCardDrafts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateCardDraftsRequest'
+      responses:
+        '200':
+          description: Card drafts generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateCardDraftsResponse'
+        '400':
+          description: Invalid generation payload
+        '500':
+          description: Generation failed
+  /api/import/preview:
+    post:
+      summary: Build import preview with clustered materials and draft cards
+      operationId: previewImport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportPreviewRequest'
+      responses:
+        '200':
+          description: Import preview generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportPreviewResponse'
+        '400':
+          description: Invalid import payload
+        '500':
+          description: Import preview failed
+  /api/onboarding/bootstrap:
+    post:
+      summary: Bootstrap workspace with initial directions, skills, and cards
+      operationId: bootstrapOnboarding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardingBootstrapRequest'
+      responses:
+        '201':
+          description: Onboarding bootstrap completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingBootstrapResponse'
+        '400':
+          description: Invalid onboarding payload
+  /api/cards/{cardId}/evidence:
+    get:
+      summary: List evidence for a card
+      operationId: listEvidence
+      parameters:
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Evidence attached to the card
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Evidence'
+    post:
+      summary: Add evidence to a card
+      operationId: createEvidence
+      parameters:
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEvidenceRequest'
+      responses:
+        '201':
+          description: Evidence created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Evidence'
+  /api/evidence/{evidenceId}:
+    delete:
+      summary: Delete evidence
+      operationId: deleteEvidence
+      parameters:
+        - name: evidenceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Evidence deleted
+        '404':
+          description: Evidence not found
+  /api/today:
+    get:
+      summary: Get today workout queue
+      operationId: getTodayWorkout
+      responses:
+        '200':
+          description: Current workout schedule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodayResponse'
+  /api/workouts/{id}/done:
+    post:
+      summary: Submit workout result
+      operationId: completeWorkout
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteWorkoutRequest'
+      responses:
+        '200':
+          description: Workout completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompleteWorkoutResponse'
+        '400':
+          description: Invalid workout results
+        '404':
+          description: Workout not found
+  /api/progress:
+    get:
+      summary: Progress dashboard snapshot
+      operationId: getProgress
+      responses:
+        '200':
+          description: Aggregated progress metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgressResponse'
+  /api/tree:
+    get:
+      summary: Direction tree snapshot
+      operationId: getTreeSnapshot
+      responses:
+        '200':
+          description: Aggregated directions, skill points, and cards
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TreeSnapshotResponse'
+  /api/vault:
+    get:
+      summary: Vault layers snapshot
+      operationId: getVaultSnapshot
+      responses:
+        '200':
+          description: Aggregated highlights, annotations, cards, and evergreen notes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VaultSnapshotResponse'
+  /api/settings/summary:
+    get:
+      summary: Data directory and record counts
+      operationId: getSettingsSummary
+      responses:
+        '200':
+          description: Database footprint and entity totals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsSummaryResponse'
+  /api/settings/export:
+    get:
+      summary: Export knowledge base snapshot
+      operationId: getSettingsExport
+      responses:
+        '200':
+          description: Aggregated dataset for backup
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsExportResponse'
 components:
   schemas:
+    VaultSnapshotResponse:
+      type: object
+      properties:
+        highlights:
+          type: array
+          items:
+            $ref: '#/components/schemas/VaultHighlight'
+        annotations:
+          type: array
+          items:
+            $ref: '#/components/schemas/VaultAnnotation'
+        cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/VaultCardSummary'
+        evergreen:
+          type: array
+          items:
+            $ref: '#/components/schemas/VaultEvergreenNote'
+      required:
+        - highlights
+        - annotations
+        - cards
+        - evergreen
+    VaultHighlight:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        direction_id:
+          type: string
+          format: uuid
+        direction_name:
+          type: string
+        card_id:
+          type: string
+          format: uuid
+        card_title:
+          type: string
+        source_type:
+          type: string
+        source_uri:
+          type: string
+          nullable: true
+        excerpt:
+          type: string
+          nullable: true
+        credibility:
+          type: integer
+        captured_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - direction_id
+        - direction_name
+        - card_id
+        - card_title
+        - source_type
+        - credibility
+        - captured_at
+    VaultAnnotation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        direction_id:
+          type: string
+          format: uuid
+        direction_name:
+          type: string
+        card_id:
+          type: string
+          format: uuid
+        card_title:
+          type: string
+        context:
+          type: string
+        noted_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - direction_id
+        - direction_name
+        - card_id
+        - card_title
+        - context
+        - noted_at
+    VaultCardSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        direction_id:
+          type: string
+          format: uuid
+        direction_name:
+          type: string
+        skill_point_id:
+          type: string
+          format: uuid
+          nullable: true
+        skill_point_name:
+          type: string
+          nullable: true
+        title:
+          type: string
+        card_type:
+          type: string
+        stability:
+          type: number
+          format: float
+        priority:
+          type: number
+          format: float
+        next_due:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - direction_id
+        - direction_name
+        - title
+        - card_type
+        - stability
+        - priority
+        - updated_at
+    VaultEvergreenNote:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        direction_id:
+          type: string
+          format: uuid
+        direction_name:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        stability:
+          type: number
+          format: float
+        application_count:
+          type: integer
+        last_applied_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - direction_id
+        - direction_name
+        - title
+        - summary
+        - stability
+        - application_count
+    TodayResponse:
+      type: object
+      properties:
+        workout:
+          $ref: '#/components/schemas/TodayWorkoutPlan'
+          nullable: true
     HealthResponse:
       type: object
       properties:
@@ -482,6 +932,959 @@ components:
           type: string
           format: date-time
           nullable: true
+    Evidence:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        card_id:
+          type: string
+          format: uuid
+        source_type:
+          type: string
+        source_uri:
+          type: string
+          nullable: true
+        excerpt:
+          type: string
+          nullable: true
+        credibility:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - card_id
+        - source_type
+        - credibility
+        - created_at
+    CreateEvidenceRequest:
+      type: object
+      properties:
+        source_type:
+          type: string
+        source_uri:
+          type: string
+          nullable: true
+        excerpt:
+          type: string
+          nullable: true
+        credibility:
+          type: integer
+      required:
+        - source_type
+    ProgressResponse:
+      type: object
+      properties:
+        totals:
+          $ref: '#/components/schemas/ProgressTotals'
+        activity:
+          $ref: '#/components/schemas/ProgressActivity'
+      required:
+        - totals
+        - activity
+    ProgressTotals:
+      type: object
+      properties:
+        total_cards:
+          type: integer
+        active_directions:
+          type: integer
+        due_today:
+          type: integer
+        overdue:
+          type: integer
+        avg_stability:
+          type: number
+          format: float
+      required:
+        - total_cards
+        - active_directions
+        - due_today
+        - overdue
+        - avg_stability
+    ProgressActivity:
+      type: object
+      properties:
+        workouts_completed_7d:
+          type: integer
+        new_cards_7d:
+          type: integer
+        applications_logged_7d:
+          type: integer
+      required:
+        - workouts_completed_7d
+        - new_cards_7d
+        - applications_logged_7d
+    TreeSnapshotResponse:
+      type: object
+      properties:
+        directions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TreeDirectionBranch'
+      required:
+        - directions
+    TreeDirectionBranch:
+      type: object
+      properties:
+        direction:
+          $ref: '#/components/schemas/Direction'
+        metrics:
+          $ref: '#/components/schemas/TreeDirectionMetrics'
+        skill_points:
+          type: array
+          items:
+            $ref: '#/components/schemas/TreeSkillPointBranch'
+        orphan_cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/TreeCardSummary'
+      required:
+        - direction
+        - metrics
+        - skill_points
+        - orphan_cards
+    TreeDirectionMetrics:
+      type: object
+      properties:
+        skill_point_count:
+          type: integer
+        card_count:
+          type: integer
+        fluent_points:
+          type: integer
+        average_stability:
+          type: number
+          format: float
+        upcoming_reviews:
+          type: integer
+      required:
+        - skill_point_count
+        - card_count
+        - fluent_points
+        - average_stability
+        - upcoming_reviews
+    TreeSkillPointBranch:
+      type: object
+      properties:
+        skill_point:
+          $ref: '#/components/schemas/SkillPoint'
+        card_count:
+          type: integer
+        level_score:
+          type: integer
+        cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/TreeCardSummary'
+      required:
+        - skill_point
+        - card_count
+        - level_score
+        - cards
+    TreeCardSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        skill_point_id:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+        body:
+          type: string
+        card_type:
+          $ref: '#/components/schemas/CardType'
+        stability:
+          type: number
+          format: float
+        relevance:
+          type: number
+          format: float
+        novelty:
+          type: number
+          format: float
+        priority:
+          type: number
+          format: float
+        next_due:
+          type: string
+          format: date-time
+          nullable: true
+        evidence_count:
+          type: integer
+        application_count:
+          type: integer
+        last_applied_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - title
+        - body
+        - card_type
+        - stability
+        - relevance
+        - novelty
+        - priority
+        - evidence_count
+        - application_count
+    MemoryCardDraft:
+      type: object
+      properties:
+        skill_point_id:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+        body:
+          type: string
+        card_type:
+          $ref: '#/components/schemas/CardType'
+        stability:
+          type: number
+          format: float
+          nullable: true
+        relevance:
+          type: number
+          format: float
+          nullable: true
+        novelty:
+          type: number
+          format: float
+          nullable: true
+        priority:
+          type: number
+          format: float
+          nullable: true
+        next_due:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - title
+        - body
+        - card_type
+    GenerateCardDraftsRequest:
+      type: object
+      properties:
+        direction_name:
+          type: string
+          nullable: true
+        task_context:
+          type: string
+          nullable: true
+        materials:
+          type: array
+          items:
+            $ref: '#/components/schemas/GenerationMaterialInput'
+        preferred_card_type:
+          $ref: '#/components/schemas/CardType'
+          nullable: true
+        desired_count:
+          type: integer
+          minimum: 1
+          default: 5
+        language:
+          type: string
+          nullable: true
+    GenerationMaterialInput:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        content:
+          type: string
+        source:
+          type: string
+          nullable: true
+      required:
+        - content
+    GenerateCardDraftsResponse:
+      type: object
+      properties:
+        drafts:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeneratedCardDraft'
+      required:
+        - drafts
+    GeneratedCardDraft:
+      type: object
+      properties:
+        draft:
+          $ref: '#/components/schemas/MemoryCardDraft'
+        rationale:
+          type: string
+        confidence:
+          type: number
+          format: float
+      required:
+        - draft
+        - rationale
+        - confidence
+    ImportPreviewRequest:
+      type: object
+      properties:
+        direction_name:
+          type: string
+          nullable: true
+        language:
+          type: string
+          nullable: true
+        desired_cards_per_cluster:
+          type: integer
+          minimum: 1
+          default: 3
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportSourceInput'
+      required:
+        - sources
+    ImportSourceInput:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        content:
+          type: string
+        url:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        kind:
+          $ref: '#/components/schemas/ImportSourceKind'
+          nullable: true
+      required:
+        - content
+    ImportPreviewResponse:
+      type: object
+      properties:
+        clusters:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportPreviewCluster'
+      required:
+        - clusters
+    ImportPreviewCluster:
+      type: object
+      properties:
+        id:
+          type: string
+        topic:
+          type: string
+        summary:
+          type: string
+        materials:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportPreviewMaterial'
+        drafts:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeneratedCardDraft'
+      required:
+        - id
+        - topic
+        - summary
+        - materials
+        - drafts
+    ImportPreviewMaterial:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        snippet:
+          type: string
+        kind:
+          type: string
+        source_url:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - title
+        - snippet
+        - kind
+        - tags
+    ImportSourceKind:
+      type: string
+      enum:
+        - url
+        - markdown
+        - text
+        - code
+    OnboardingBootstrapRequest:
+      type: object
+      properties:
+        directions:
+          type: array
+          items:
+            $ref: '#/components/schemas/OnboardingDirectionSeed'
+      required:
+        - directions
+    OnboardingDirectionSeed:
+      type: object
+      properties:
+        name:
+          type: string
+        stage:
+          $ref: '#/components/schemas/DirectionStage'
+        quarterly_goal:
+          type: string
+          nullable: true
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/OnboardingSkillSeed'
+        cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/OnboardingCardSeed'
+      required:
+        - name
+        - stage
+    OnboardingSkillSeed:
+      type: object
+      properties:
+        name:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        level:
+          $ref: '#/components/schemas/SkillLevel'
+          nullable: true
+      required:
+        - name
+    OnboardingCardSeed:
+      type: object
+      properties:
+        title:
+          type: string
+        body:
+          type: string
+        card_type:
+          $ref: '#/components/schemas/CardType'
+        skill_point_name:
+          type: string
+          nullable: true
+        stability:
+          type: number
+          format: float
+          nullable: true
+        relevance:
+          type: number
+          format: float
+          nullable: true
+        novelty:
+          type: number
+          format: float
+          nullable: true
+        priority:
+          type: number
+          format: float
+          nullable: true
+        next_due:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - title
+        - body
+        - card_type
+    OnboardingBootstrapResponse:
+      type: object
+      properties:
+        directions:
+          type: array
+          items:
+            $ref: '#/components/schemas/OnboardingDirectionBundle'
+        today_plan:
+          $ref: '#/components/schemas/TodayWorkoutPlan'
+          nullable: true
+      required:
+        - directions
+    OnboardingDirectionBundle:
+      type: object
+      properties:
+        direction:
+          $ref: '#/components/schemas/Direction'
+        skill_points:
+          type: array
+          items:
+            $ref: '#/components/schemas/SkillPoint'
+        cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/MemoryCard'
+      required:
+        - direction
+        - skill_points
+        - cards
+    TodayWorkoutPlan:
+      type: object
+      properties:
+        workout_id:
+          type: string
+          format: uuid
+        scheduled_for:
+          type: string
+          format: date-time
+        generated_at:
+          type: string
+          format: date-time
+        segments:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkoutSegmentPlan'
+        totals:
+          $ref: '#/components/schemas/WorkoutTotals'
+      required:
+        - workout_id
+        - scheduled_for
+        - generated_at
+        - segments
+        - totals
+    WorkoutSegmentPlan:
+      type: object
+      properties:
+        phase:
+          $ref: '#/components/schemas/WorkoutPhase'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkoutItemPlan'
+      required:
+        - phase
+        - items
+    WorkoutItemPlan:
+      type: object
+      properties:
+        item_id:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+        card:
+          $ref: '#/components/schemas/MemoryCard'
+      required:
+        - item_id
+        - sequence
+        - card
+    WorkoutTotals:
+      type: object
+      properties:
+        total_cards:
+          type: integer
+        quiz:
+          type: integer
+        apply:
+          type: integer
+        review:
+          type: integer
+      required:
+        - total_cards
+        - quiz
+        - apply
+        - review
+    WorkoutPhase:
+      type: string
+      enum: [quiz, apply, review]
+    WorkoutResultKind:
+      type: string
+      enum: [pass, fail]
+    CompleteWorkoutRequest:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkoutResultInput'
+      required:
+        - results
+    WorkoutResultInput:
+      type: object
+      properties:
+        item_id:
+          type: string
+          format: uuid
+        result:
+          $ref: '#/components/schemas/WorkoutResultKind'
+      required:
+        - item_id
+        - result
+    CompleteWorkoutResponse:
+      type: object
+      properties:
+        summary:
+          $ref: '#/components/schemas/WorkoutCompletionSummary'
+      required:
+        - summary
+    WorkoutCompletionSummary:
+      type: object
+      properties:
+        workout_id:
+          type: string
+          format: uuid
+        completed_at:
+          type: string
+          format: date-time
+        updates:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkoutCardProgress'
+      required:
+        - workout_id
+        - completed_at
+        - updates
+    WorkoutCardProgress:
+      type: object
+      properties:
+        card_id:
+          type: string
+          format: uuid
+        result:
+          $ref: '#/components/schemas/WorkoutResultKind'
+        stability:
+          type: number
+          format: float
+        priority:
+          type: number
+          format: float
+        next_due:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - card_id
+        - result
+        - stability
+        - priority
+    SettingsSummaryResponse:
+      type: object
+      properties:
+        data_path:
+          type: string
+          nullable: true
+        database_size_bytes:
+          type: integer
+          format: int64
+        direction_count:
+          type: integer
+        skill_point_count:
+          type: integer
+        card_count:
+          type: integer
+        evidence_count:
+          type: integer
+        workout_count:
+          type: integer
+        last_workout_completed_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - data_path
+        - database_size_bytes
+        - direction_count
+        - skill_point_count
+        - card_count
+        - evidence_count
+        - workout_count
+        - last_workout_completed_at
+    SettingsExportResponse:
+      type: object
+      properties:
+        directions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SettingsDirectionExport'
+        skill_points:
+          type: array
+          items:
+            $ref: '#/components/schemas/SettingsSkillPointExport'
+        cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/SettingsCardExport'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/SettingsEvidenceExport'
+        card_tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/SettingsCardTagExport'
+        workouts:
+          type: array
+          items:
+            $ref: '#/components/schemas/SettingsWorkoutExport'
+        workout_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SettingsWorkoutItemExport'
+        applications:
+          type: array
+          items:
+            $ref: '#/components/schemas/SettingsCardApplicationExport'
+      required:
+        - directions
+        - skill_points
+        - cards
+        - evidence
+        - card_tags
+        - workouts
+        - workout_items
+        - applications
+    SettingsDirectionExport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        stage:
+          $ref: '#/components/schemas/DirectionStage'
+        quarterly_goal:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - stage
+        - created_at
+        - updated_at
+    SettingsSkillPointExport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        direction_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        level:
+          $ref: '#/components/schemas/SkillLevel'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - direction_id
+        - name
+        - level
+        - created_at
+        - updated_at
+    SettingsCardExport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        direction_id:
+          type: string
+          format: uuid
+        skill_point_id:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+        body:
+          type: string
+        card_type:
+          $ref: '#/components/schemas/CardType'
+        stability:
+          type: number
+          format: float
+        relevance:
+          type: number
+          format: float
+        novelty:
+          type: number
+          format: float
+        priority:
+          type: number
+          format: float
+        next_due:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - direction_id
+        - title
+        - body
+        - card_type
+        - stability
+        - relevance
+        - novelty
+        - priority
+        - created_at
+        - updated_at
+    SettingsEvidenceExport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        card_id:
+          type: string
+          format: uuid
+        source_type:
+          type: string
+        source_uri:
+          type: string
+          nullable: true
+        excerpt:
+          type: string
+          nullable: true
+        credibility:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - card_id
+        - source_type
+        - credibility
+        - created_at
+    SettingsCardTagExport:
+      type: object
+      properties:
+        card_id:
+          type: string
+          format: uuid
+        tag:
+          type: string
+      required:
+        - card_id
+        - tag
+    SettingsWorkoutExport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        scheduled_for:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+        payload:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - scheduled_for
+        - status
+        - payload
+        - created_at
+        - updated_at
+    SettingsWorkoutItemExport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        workout_id:
+          type: string
+          format: uuid
+        card_id:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+        phase:
+          type: string
+        result:
+          type: string
+          nullable: true
+        due_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - workout_id
+        - card_id
+        - sequence
+        - phase
+        - created_at
+    SettingsCardApplicationExport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        card_id:
+          type: string
+          format: uuid
+        context:
+          type: string
+        noted_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - card_id
+        - context
+        - noted_at
     CardType:
       type: string
       enum: [fact, concept, procedure, claim]

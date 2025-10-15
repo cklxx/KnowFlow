@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
-    routing::{get, patch},
+    routing::get,
     Json, Router,
 };
 use chrono::{DateTime, Utc};
@@ -12,16 +12,36 @@ use uuid::Uuid;
 
 use crate::domain::{CardType, MemoryCard, MemoryCardDraft, MemoryCardUpdate};
 use crate::error::{AppError, AppResult};
-use crate::repositories::memory_cards::MemoryCardRepository;
+use crate::repositories::memory_cards::{MemoryCardRepository, MemoryCardSearch};
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
     Router::new()
+        .route("/api/cards", get(search_cards))
         .route(
             "/api/directions/:direction_id/cards",
             get(list_cards).post(create_card),
         )
-        .route("/api/cards/:id", patch(update_card).delete(delete_card))
+        .route(
+            "/api/cards/:id",
+            get(get_card).patch(update_card).delete(delete_card),
+        )
+}
+
+async fn search_cards(
+    State(state): State<AppState>,
+    Query(params): Query<MemoryCardSearchQuery>,
+) -> AppResult<Json<Vec<MemoryCard>>> {
+    let repo = MemoryCardRepository::new(state.pool());
+    let search = MemoryCardSearch {
+        direction_id: params.direction_id,
+        skill_point_id: params.skill_point_id,
+        query: params.q.as_deref(),
+        due_before: params.due_before,
+        limit: params.limit,
+    };
+    let cards = repo.search(search).await?;
+    Ok(Json(cards))
 }
 
 async fn list_cards(
@@ -64,6 +84,17 @@ async fn delete_card(State(state): State<AppState>, Path(id): Path<Uuid>) -> App
         Ok(StatusCode::NO_CONTENT)
     } else {
         Err(AppError::NotFound)
+    }
+}
+
+async fn get_card(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> AppResult<Json<MemoryCard>> {
+    let repo = MemoryCardRepository::new(state.pool());
+    match repo.get(id).await? {
+        Some(card) => Ok(Json(card)),
+        None => Err(AppError::NotFound),
     }
 }
 
@@ -127,6 +158,20 @@ struct MemoryCardUpdateRequest {
     priority: Option<f64>,
     #[serde(default)]
     next_due: Option<Option<DateTime<Utc>>>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct MemoryCardSearchQuery {
+    #[serde(default)]
+    direction_id: Option<Uuid>,
+    #[serde(default)]
+    skill_point_id: Option<Uuid>,
+    #[serde(default)]
+    q: Option<String>,
+    #[serde(default)]
+    due_before: Option<DateTime<Utc>>,
+    #[serde(default)]
+    limit: Option<usize>,
 }
 
 impl TryFrom<MemoryCardUpdateRequest> for MemoryCardUpdate {

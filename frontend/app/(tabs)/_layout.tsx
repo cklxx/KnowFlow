@@ -4,6 +4,7 @@ import { useTheme } from '@/providers';
 
 const PRIMARY_TABS = [
   { name: 'today', title: 'Today' },
+  { name: 'intelligence', title: 'AI' },
   { name: 'tree', title: 'Tree' },
   { name: 'vault', title: 'Vault' },
   { name: 'search', title: 'Search' },
