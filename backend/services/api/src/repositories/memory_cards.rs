@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
+use sqlx::{QueryBuilder, Sqlite};
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
@@ -10,6 +11,26 @@ use crate::error::{AppError, AppResult};
 #[derive(Clone)]
 pub struct MemoryCardRepository<'a> {
     pool: &'a SqlitePool,
+}
+
+pub struct MemoryCardSearch<'a> {
+    pub direction_id: Option<Uuid>,
+    pub skill_point_id: Option<Uuid>,
+    pub query: Option<&'a str>,
+    pub due_before: Option<DateTime<Utc>>,
+    pub limit: Option<usize>,
+}
+
+impl<'a> Default for MemoryCardSearch<'a> {
+    fn default() -> Self {
+        Self {
+            direction_id: None,
+            skill_point_id: None,
+            query: None,
+            due_before: None,
+            limit: None,
+        }
+    }
 }
 
 impl<'a> MemoryCardRepository<'a> {
@@ -28,6 +49,83 @@ impl<'a> MemoryCardRepository<'a> {
         rows.into_iter()
             .map(MemoryCardRow::try_from_row)
             .collect::<Result<Vec<_>, AppError>>()?
+            .into_iter()
+            .map(|row| row.into_domain())
+            .collect()
+    }
+
+    pub async fn list_for_today(
+        &self,
+        now: DateTime<Utc>,
+        limit: usize,
+    ) -> AppResult<Vec<MemoryCard>> {
+        let rows = sqlx::query(
+            "SELECT * FROM memory_cards ORDER BY CASE WHEN next_due IS NULL OR next_due <= ? THEN 0 ELSE 1 END, next_due, priority DESC LIMIT ?",
+        )
+        .bind(now.to_rfc3339())
+        .bind(limit as i64)
+        .fetch_all(self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(MemoryCardRow::try_from_row)
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .map(|row| row.into_domain())
+            .collect()
+    }
+
+    pub async fn search(&self, params: MemoryCardSearch<'_>) -> AppResult<Vec<MemoryCard>> {
+        let mut builder = QueryBuilder::<Sqlite>::new("SELECT * FROM memory_cards");
+        let mut separator = " WHERE ";
+
+        if let Some(id) = params.direction_id {
+            builder
+                .push(separator)
+                .push("direction_id = ")
+                .push_bind(id.to_string());
+            separator = " AND ";
+        }
+
+        if let Some(id) = params.skill_point_id {
+            builder
+                .push(separator)
+                .push("skill_point_id = ")
+                .push_bind(id.to_string());
+            separator = " AND ";
+        }
+
+        if let Some(due_before) = params.due_before {
+            builder
+                .push(separator)
+                .push("(next_due IS NULL OR next_due <= ")
+                .push_bind(due_before.to_rfc3339())
+                .push(")");
+            separator = " AND ";
+        }
+
+        if let Some(query) = params.query {
+            let pattern = format!("%{}%", query.to_lowercase());
+            builder
+                .push(separator)
+                .push("(lower(title) LIKE ")
+                .push_bind(pattern.clone())
+                .push(" OR lower(body) LIKE ")
+                .push_bind(pattern)
+                .push(")");
+        }
+
+        builder.push(" ORDER BY priority DESC, created_at DESC");
+
+        if let Some(limit) = params.limit {
+            builder.push(" LIMIT ").push_bind(limit as i64);
+        }
+
+        let rows = builder.build().fetch_all(self.pool).await?;
+
+        rows.into_iter()
+            .map(MemoryCardRow::try_from_row)
+            .collect::<Result<Vec<_>, _>>()?
             .into_iter()
             .map(|row| row.into_domain())
             .collect()
@@ -146,7 +244,7 @@ impl<'a> MemoryCardRepository<'a> {
     }
 }
 
-struct MemoryCardRow {
+pub(crate) struct MemoryCardRow {
     id: Uuid,
     direction_id: Uuid,
     skill_point_id: Option<Uuid>,
@@ -163,7 +261,7 @@ struct MemoryCardRow {
 }
 
 impl MemoryCardRow {
-    fn try_from_row(row: sqlx::sqlite::SqliteRow) -> AppResult<Self> {
+    pub(crate) fn try_from_row(row: sqlx::sqlite::SqliteRow) -> AppResult<Self> {
         let id = parse_uuid(row.get("id"))?;
         let direction_id = parse_uuid(row.get("direction_id"))?;
         let skill_point_id: Option<String> = row.get("skill_point_id");
@@ -190,7 +288,7 @@ impl MemoryCardRow {
         })
     }
 
-    fn into_domain(self) -> AppResult<MemoryCard> {
+    pub(crate) fn into_domain(self) -> AppResult<MemoryCard> {
         Ok(MemoryCard {
             id: self.id,
             direction_id: self.direction_id,

@@ -17,7 +17,7 @@ export const Screen = ({ children }: PropsWithChildren) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
   },
 });

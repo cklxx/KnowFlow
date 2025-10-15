@@ -23,6 +23,7 @@ import {
   type UpdateMemoryCardPayload,
   type UpdateSkillPointPayload,
 } from '@api';
+import { TREE_SNAPSHOT_QUERY_KEY } from '@/features/tree';
 
 const DIRECTIONS_KEY = ['directions'];
 
@@ -58,6 +59,7 @@ export const useCreateDirection = () => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: DIRECTIONS_KEY });
+      queryClient.invalidateQueries({ queryKey: TREE_SNAPSHOT_QUERY_KEY });
     },
   });
 };
@@ -98,6 +100,7 @@ export const useCreateSkillPoint = (directionId: string | undefined) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['skill-points', directionId] });
+      queryClient.invalidateQueries({ queryKey: TREE_SNAPSHOT_QUERY_KEY });
     },
   });
 };
@@ -110,6 +113,7 @@ export const useUpdateSkillPoint = (directionId: string | undefined) => {
       updateSkillPoint(id, payload),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['skill-points', directionId] });
+      queryClient.invalidateQueries({ queryKey: TREE_SNAPSHOT_QUERY_KEY });
     },
   });
 };
@@ -126,6 +130,7 @@ export const useCreateMemoryCard = (directionId: string | undefined) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['memory-cards', directionId] });
+      queryClient.invalidateQueries({ queryKey: TREE_SNAPSHOT_QUERY_KEY });
     },
   });
 };
@@ -138,6 +143,7 @@ export const useUpdateMemoryCard = (directionId: string | undefined) => {
       updateMemoryCard(id, payload),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['memory-cards', directionId] });
+      queryClient.invalidateQueries({ queryKey: TREE_SNAPSHOT_QUERY_KEY });
     },
   });
 };
@@ -172,6 +178,7 @@ export const useUpdateDirection = () => {
       updateDirection(id, payload),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: DIRECTIONS_KEY });
+      queryClient.invalidateQueries({ queryKey: TREE_SNAPSHOT_QUERY_KEY });
     },
   });
 };
@@ -183,6 +190,7 @@ export const useDeleteDirection = () => {
     mutationFn: (id: string) => deleteDirection(id),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: DIRECTIONS_KEY });
+      queryClient.invalidateQueries({ queryKey: TREE_SNAPSHOT_QUERY_KEY });
     },
   });
 };

@@ -18,10 +18,13 @@
     "expo-router": "^6.0.12",
     "expo-status-bar": "~3.0.8",
     "react": "19.1.0",
+    "react-dom": "19.1.0",
     "react-native": "0.81.4",
     "react-native-gesture-handler": "^2.19.0",
-    "react-native-safe-area-context": "^4.12.0",
+    "react-native-gifted-chat": "^2.5.0",
+    "react-native-safe-area-context": "^5.4.1",
     "react-native-screens": "^4.6.0",
+    "react-native-web": "0.21.1",
     "zustand": "^5.0.0"
   },
   "devDependencies": {
@@ -31,13 +34,15 @@
     "@typescript-eslint/eslint-plugin": "^8.17.0",
     "@typescript-eslint/parser": "^8.17.0",
     "babel-plugin-module-resolver": "^5.0.2",
+    "babel-preset-expo": "~54.0.0",
+    "es-abstract": "^1.23.3",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.37.2",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-native": "^5.0.0",
     "prettier": "^3.3.3",
-    "typescript": "~5.9.2"
+    "typescript": "^5.6.3"
   },
   "private": true,
   "expo": {

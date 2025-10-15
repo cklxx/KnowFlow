@@ -4,6 +4,7 @@ mod domain;
 mod error;
 mod repositories;
 mod routes;
+mod services;
 mod state;
 
 use dotenvy::dotenv;
@@ -11,6 +12,7 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::config::AppConfig;
+use crate::services::llm::LlmClient;
 use crate::state::AppState;
 
 #[tokio::main]
@@ -20,10 +22,11 @@ async fn main() -> anyhow::Result<()> {
 
     let config = AppConfig::from_env()?;
     let pool = db::connect(&config.database_url).await?;
+    let llm_client = LlmClient::new(config.llm.clone())?;
 
     sqlx::migrate!("./migrations").run(&pool).await?;
 
-    let state = AppState::new(pool);
+    let state = AppState::new(pool, llm_client);
 
     let app = routes::build_router(state).layer(TraceLayer::new_for_http());
 
