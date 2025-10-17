@@ -6,7 +6,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use crate::config::LlmConfig;
+use crate::config::{LlmProviderConfig, LlmSettings, OllamaConfig, RemoteLlmConfig};
 use crate::domain::{CardType, MemoryCardDraft};
 
 const MAX_GENERATION_TARGET: usize = 8;
@@ -14,7 +14,7 @@ const MAX_GENERATION_TARGET: usize = 8;
 #[derive(Clone)]
 pub struct LlmClient {
     http: Client,
-    config: LlmConfig,
+    settings: LlmSettings,
 }
 
 #[derive(Debug, Clone)]
@@ -42,13 +42,13 @@ pub struct GeneratedCardDraft {
 }
 
 impl LlmClient {
-    pub fn new(config: LlmConfig) -> Result<Self> {
+    pub fn new(settings: LlmSettings) -> Result<Self> {
         let http = Client::builder()
-            .timeout(config.timeout)
+            .timeout(settings.timeout)
             .build()
             .context("failed to build HTTP client")?;
 
-        Ok(Self { http, config })
+        Ok(Self { http, settings })
     }
 
     pub async fn generate_card_drafts(
@@ -57,38 +57,52 @@ impl LlmClient {
     ) -> Result<Vec<GeneratedCardDraft>> {
         let target_count = input.desired_count.clamp(1, MAX_GENERATION_TARGET);
 
-        if self.config.api_key.is_none() {
-            return Ok(fallback_drafts(&input, target_count));
-        }
+        match &self.settings.provider {
+            LlmProviderConfig::Remote(remote) => {
+                if remote.api_key.is_none() {
+                    return Ok(fallback_drafts(&input, target_count));
+                }
 
-        match self.call_remote(&input, target_count).await {
-            Ok(drafts) if !drafts.is_empty() => Ok(drafts),
-            Ok(_) => Ok(fallback_drafts(&input, target_count)),
-            Err(err) => {
-                warn!(error = %err, "llm generation failed, using fallback drafts");
-                Ok(fallback_drafts(&input, target_count))
+                match self.call_remote(remote, &input, target_count).await {
+                    Ok(drafts) if !drafts.is_empty() => Ok(drafts),
+                    Ok(_) => Ok(fallback_drafts(&input, target_count)),
+                    Err(err) => {
+                        warn!(error = %err, provider = "remote", "llm generation failed, using fallback drafts");
+                        Ok(fallback_drafts(&input, target_count))
+                    }
+                }
+            }
+            LlmProviderConfig::Ollama(local) => {
+                match self.call_ollama(local, &input, target_count).await {
+                    Ok(drafts) if !drafts.is_empty() => Ok(drafts),
+                    Ok(_) => Ok(fallback_drafts(&input, target_count)),
+                    Err(err) => {
+                        warn!(error = %err, provider = "ollama", "llm generation failed, using fallback drafts");
+                        Ok(fallback_drafts(&input, target_count))
+                    }
+                }
             }
         }
     }
 
     async fn call_remote(
         &self,
+        config: &RemoteLlmConfig,
         input: &CardDraftGenerationInput,
         target_count: usize,
     ) -> Result<Vec<GeneratedCardDraft>> {
-        let api_key = self
-            .config
+        let api_key = config
             .api_key
             .as_ref()
             .ok_or_else(|| anyhow!("missing LLM_API_KEY configuration"))?;
 
         let url = format!(
             "{}/v1/chat/completions",
-            self.config.base_url.trim_end_matches('/')
+            config.base_url.trim_end_matches('/')
         );
 
         let request = ChatCompletionRequest {
-            model: self.config.model.clone(),
+            model: config.model.clone(),
             temperature: 0.2,
             messages: vec![
                 ChatMessage {
@@ -123,6 +137,57 @@ impl LlmClient {
         else {
             return Ok(Vec::new());
         };
+
+        parse_model_output(
+            &content,
+            input.preferred_type.unwrap_or(CardType::Concept),
+            target_count,
+        )
+    }
+
+    async fn call_ollama(
+        &self,
+        config: &OllamaConfig,
+        input: &CardDraftGenerationInput,
+        target_count: usize,
+    ) -> Result<Vec<GeneratedCardDraft>> {
+        let url = format!("{}/api/chat", config.base_url.trim_end_matches('/'));
+
+        let request = OllamaChatRequest {
+            model: config.model.clone(),
+            stream: false,
+            keep_alive: config.keep_alive.clone(),
+            messages: vec![
+                OllamaChatMessage {
+                    role: "system".to_string(),
+                    content: system_prompt(),
+                },
+                OllamaChatMessage {
+                    role: "user".to_string(),
+                    content: build_user_prompt(input),
+                },
+            ],
+            options: Some(build_ollama_options(config, target_count)),
+        };
+
+        let response = self
+            .http
+            .post(url)
+            .json(&request)
+            .send()
+            .await
+            .context("failed to send request to Ollama")?
+            .error_for_status()
+            .context("Ollama returned error status")?
+            .json::<OllamaChatResponse>()
+            .await
+            .context("failed to decode Ollama response")?;
+
+        let content = response
+            .message
+            .map(|message| message.content)
+            .or(response.response)
+            .ok_or_else(|| anyhow!("Ollama response did not contain assistant message"))?;
 
         parse_model_output(
             &content,
@@ -340,6 +405,62 @@ struct ChatCompletionRequest {
 struct ChatMessage {
     role: &'static str,
     content: String,
+}
+
+#[derive(Serialize)]
+struct OllamaChatRequest {
+    model: String,
+    messages: Vec<OllamaChatMessage>,
+    stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    keep_alive: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    options: Option<OllamaOptionsPayload>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct OllamaChatMessage {
+    role: String,
+    content: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct OllamaChatResponse {
+    #[serde(default)]
+    message: Option<OllamaChatMessage>,
+    #[serde(default)]
+    response: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct OllamaOptionsPayload {
+    temperature: f32,
+    top_p: f32,
+    #[serde(rename = "repeat_penalty")]
+    repeat_penalty: f32,
+    #[serde(rename = "num_ctx", skip_serializing_if = "Option::is_none")]
+    num_ctx: Option<u32>,
+    #[serde(rename = "num_predict", skip_serializing_if = "Option::is_none")]
+    num_predict: Option<u32>,
+    #[serde(rename = "num_thread", skip_serializing_if = "Option::is_none")]
+    num_threads: Option<u32>,
+}
+
+fn build_ollama_options(config: &OllamaConfig, target_count: usize) -> OllamaOptionsPayload {
+    let options = &config.options;
+    let auto_predict = options.num_predict.or_else(|| {
+        let predicted = (target_count as u32).saturating_mul(256).clamp(256, 4096);
+        Some(predicted)
+    });
+
+    OllamaOptionsPayload {
+        temperature: options.temperature,
+        top_p: options.top_p,
+        repeat_penalty: options.repeat_penalty,
+        num_ctx: options.num_ctx,
+        num_predict: auto_predict,
+        num_threads: options.num_threads,
+    }
 }
 
 #[derive(Debug, Deserialize)]

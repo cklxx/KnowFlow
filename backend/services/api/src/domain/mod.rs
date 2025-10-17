@@ -12,5 +12,7 @@ pub use memory_card::{CardType, MemoryCard, MemoryCardDraft, MemoryCardUpdate};
 pub use skill_point::{SkillLevel, SkillPoint, SkillPointDraft, SkillPointUpdate};
 pub use workout::{
     TodayWorkoutPlan, WorkoutCardProgress, WorkoutCompletionSummary, WorkoutItemPlan, WorkoutPhase,
-    WorkoutResultKind, WorkoutSegmentPlan, WorkoutStatus, WorkoutTotals,
+    WorkoutResultKind, WorkoutSegmentDirectionFocus, WorkoutSegmentFocus, WorkoutSegmentPlan,
+    WorkoutSegmentSkillFocus, WorkoutStatus, WorkoutSummaryDirectionBreakdown,
+    WorkoutSummaryMetrics, WorkoutSummarySkillBreakdown, WorkoutTotals,
 };

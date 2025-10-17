@@ -61,21 +61,36 @@ The API currently exposes:
 - `POST /api/onboarding/bootstrap` – 批量写入方向、技能点与选中的卡片草稿并生成今日训练计划
 - `GET /api/today` – fetch or schedule today's workout queue (up to 20 cards)
 - `POST /api/workouts/:id/done` – submit workout results (`{"results":[{"item_id":"...","result":"pass"}]}`)
-- `GET /api/progress` – retrieve aggregated metrics for the progress dashboard
+- `GET /api/progress` – retrieve direction mastery, skill gaps, retention (7/30/90 plus daily trend), streaks, recent applications, KV/UDR momentum, and coaching suggestions for the progress dashboard
 - `GET /api/tree` – fetch a direction tree snapshot with nested skill points, cards, and metrics
 - `GET /api/vault` – snapshot layered vault data (highlights, annotations, cards, evergreen notes)
+- `GET /api/search` – unified keyword search across directions, cards, evidence, evergreen notes, and recent applications
 - `POST /api/import/preview` – 聚类导入材料并生成可筛选的卡片草稿预览
 - `GET /api/settings/summary` – 查看数据库路径、体积与实体数量概览
 - `GET /api/settings/export` – 导出方向、技能点、卡片、训练记录的 JSON 快照
 
 By default the server reads `DATABASE_URL` (defaults to `sqlite://./knowflow.db`) and runs embedded SQLx migrations on boot.
 
-LLM-driven generation is optional. Configure the following environment variables to enable remote calls (OpenAI-compatible by default):
+LLM-driven generation is optional. Configure the following environment variables to enable different providers:
+
+- `LLM_PROVIDER` – `remote` (default) hits OpenAI-compatible HTTP APIs, `ollama` uses a local Ollama runtime for CPU inference.
+- `LLM_TIMEOUT_SECS` – request timeout in seconds (defaults to `30`).
+
+For remote APIs (OpenAI-compatible by default):
 
 - `LLM_API_BASE` – API endpoint base URL (defaults to `https://api.openai.com`).
 - `LLM_MODEL` – model identifier, e.g. `gpt-4o-mini`.
 - `LLM_API_KEY` – secret token. When absent, the API falls back to heuristic card drafts.
-- `LLM_TIMEOUT_SECS` – request timeout in seconds (defaults to `30`).
+
+For the local Ollama provider (CPU-friendly and supports custom/self-trained GGUF weights):
+
+- `OLLAMA_API_BASE` – Ollama HTTP endpoint (defaults to `http://127.0.0.1:11434`).
+- `OLLAMA_MODEL` – model name to load via Ollama (e.g. `llama3`, `qwen2`, or a custom modelfile).
+- `OLLAMA_KEEP_ALIVE` – optional keep-alive duration (e.g. `30m`) to prevent frequent unload/load cycles.
+- `OLLAMA_TEMPERATURE`, `OLLAMA_TOP_P`, `OLLAMA_REPEAT_PENALTY` – sampling parameters (defaults: `0.2`, `0.95`, `1.08`).
+- `OLLAMA_NUM_PREDICT`, `OLLAMA_NUM_CTX`, `OLLAMA_NUM_THREADS` – advanced performance controls to align with your CPU setup.
+
+To leverage your own fine-tuned checkpoints, convert them to GGUF and `ollama create my-model -f Modelfile` referencing the artifact. Setting `OLLAMA_MODEL=my-model` lets KnowFlow run inference entirely on CPU without external services.
 
 ## Tooling
 

@@ -6,7 +6,7 @@ use serde_json::Value;
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
-use crate::domain::{TodayWorkoutPlan, WorkoutStatus};
+use crate::domain::{TodayWorkoutPlan, WorkoutStatus, WorkoutSummaryMetrics};
 use crate::error::{AppError, AppResult};
 
 #[derive(Clone)]
@@ -139,6 +139,39 @@ impl<'a> WorkoutRepository<'a> {
             .bind(workout_id.to_string())
             .execute(self.pool)
             .await?;
+
+        Ok(())
+    }
+
+    pub async fn record_summary(
+        &self,
+        workout_id: Uuid,
+        completed_at: DateTime<Utc>,
+        metrics: &WorkoutSummaryMetrics,
+    ) -> AppResult<()> {
+        let now = Utc::now().to_rfc3339();
+
+        sqlx::query(
+            "INSERT INTO workout_summaries (workout_id, completed_at, total_items, pass_rate, kv_delta, udr, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?) \
+             ON CONFLICT(workout_id) DO UPDATE SET \
+                 completed_at = excluded.completed_at, \
+                 total_items = excluded.total_items, \
+                 pass_rate = excluded.pass_rate, \
+                 kv_delta = excluded.kv_delta, \
+                 udr = excluded.udr, \
+                 updated_at = excluded.updated_at",
+        )
+        .bind(workout_id.to_string())
+        .bind(completed_at.to_rfc3339())
+        .bind(metrics.total_items as i64)
+        .bind(metrics.pass_rate)
+        .bind(metrics.kv_delta)
+        .bind(metrics.udr)
+        .bind(completed_at.to_rfc3339())
+        .bind(now)
+        .execute(self.pool)
+        .await?;
 
         Ok(())
     }

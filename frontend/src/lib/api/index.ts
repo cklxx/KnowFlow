@@ -5,6 +5,7 @@ export * from './today';
 export * from './progress';
 export * from './tree';
 export * from './vault';
+export * from './search';
 export * from './intelligence';
 export * from './onboarding';
 export * from './evidence';
