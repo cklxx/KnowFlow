@@ -6,6 +6,7 @@ mod intelligence;
 mod memory_cards;
 mod onboarding;
 mod progress;
+mod search;
 mod settings;
 mod skill_points;
 mod today;
@@ -31,6 +32,7 @@ pub fn build_router(state: AppState) -> Router {
         .merge(today::router())
         .merge(tree::router())
         .merge(vault::router())
+        .merge(search::router())
         .merge(settings::router())
         .layer(cors())
         .with_state(state)

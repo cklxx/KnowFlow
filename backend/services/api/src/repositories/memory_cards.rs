@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
@@ -5,7 +6,7 @@ use sqlx::{QueryBuilder, Sqlite};
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
-use crate::domain::{CardType, MemoryCard, MemoryCardDraft, MemoryCardUpdate};
+use crate::domain::{CardType, MemoryCard, MemoryCardDraft, MemoryCardUpdate, WorkoutResultKind};
 use crate::error::{AppError, AppResult};
 
 #[derive(Clone)]
@@ -73,6 +74,104 @@ impl<'a> MemoryCardRepository<'a> {
             .into_iter()
             .map(|row| row.into_domain())
             .collect()
+    }
+
+    pub async fn review_stats(&self) -> AppResult<HashMap<Uuid, CardReviewStats>> {
+        const RECENT_RESULTS_LIMIT: usize = 8;
+
+        let rows = sqlx::query(
+            "SELECT wi.card_id AS card_id, \
+                    MAX(COALESCE(w.completed_at, wi.created_at)) AS last_seen, \
+                    SUM(CASE WHEN wi.result = 'pass' THEN 1 ELSE 0 END) AS pass_count, \
+                    SUM(CASE WHEN wi.result = 'fail' THEN 1 ELSE 0 END) AS fail_count, \
+                    MAX(CASE WHEN wi.result = 'pass' THEN COALESCE(w.completed_at, wi.created_at) END) AS last_pass_at, \
+                    MAX(CASE WHEN wi.result = 'fail' THEN COALESCE(w.completed_at, wi.created_at) END) AS last_fail_at \
+             FROM workout_items wi \
+             JOIN workouts w ON wi.workout_id = w.id \
+             WHERE wi.result IS NOT NULL AND w.status = 'completed' \
+             GROUP BY wi.card_id",
+        )
+        .fetch_all(self.pool)
+        .await?;
+
+        let mut map = HashMap::with_capacity(rows.len());
+
+        for row in rows {
+            let card_id = parse_uuid(row.get::<String, _>("card_id"))?;
+            let last_seen: Option<String> = row.get("last_seen");
+            let pass_count: Option<i64> = row.get("pass_count");
+            let fail_count: Option<i64> = row.get("fail_count");
+            let last_pass_at: Option<String> = row.get("last_pass_at");
+            let last_fail_at: Option<String> = row.get("last_fail_at");
+
+            let stats = CardReviewStats {
+                last_seen: last_seen.map(parse_time).transpose()?,
+                last_pass_at: last_pass_at.map(parse_time).transpose()?,
+                last_fail_at: last_fail_at.map(parse_time).transpose()?,
+                pass_count: pass_count.unwrap_or(0),
+                fail_count: fail_count.unwrap_or(0),
+                ..Default::default()
+            };
+
+            map.insert(card_id, stats);
+        }
+
+        let recent_rows = sqlx::query(
+            "SELECT card_id, result, occurred_at, rn FROM ( \
+                 SELECT wi.card_id AS card_id, \
+                        wi.result AS result, \
+                        COALESCE(w.completed_at, wi.created_at) AS occurred_at, \
+                        ROW_NUMBER() OVER (PARTITION BY wi.card_id ORDER BY COALESCE(w.completed_at, wi.created_at) DESC) AS rn \
+                 FROM workout_items wi \
+                 JOIN workouts w ON wi.workout_id = w.id \
+                 WHERE wi.result IS NOT NULL AND w.status = 'completed' \
+             ) \
+             WHERE rn <= ? \
+             ORDER BY card_id, rn",
+        )
+        .bind(RECENT_RESULTS_LIMIT as i64)
+        .fetch_all(self.pool)
+        .await?;
+
+        let mut last_card: Option<Uuid> = None;
+        let mut streak_kind: Option<WorkoutResultKind> = None;
+
+        for row in recent_rows {
+            let card_id = parse_uuid(row.get::<String, _>("card_id"))?;
+            let raw_result: String = row.get("result");
+            let result = WorkoutResultKind::from_str(&raw_result)
+                .map_err(|err| AppError::Validation(err.to_string()))?;
+
+            let stats = map.entry(card_id).or_default();
+
+            if stats.recent_results.len() < RECENT_RESULTS_LIMIT {
+                stats.recent_results.push(result);
+            }
+
+            if last_card != Some(card_id) {
+                last_card = Some(card_id);
+                streak_kind = None;
+                stats.consecutive_passes = 0;
+                stats.consecutive_fails = 0;
+            }
+
+            match streak_kind {
+                None => {
+                    streak_kind = Some(result);
+                    match result {
+                        WorkoutResultKind::Pass => stats.consecutive_passes = 1,
+                        WorkoutResultKind::Fail => stats.consecutive_fails = 1,
+                    }
+                }
+                Some(kind) if kind == result => match result {
+                    WorkoutResultKind::Pass => stats.consecutive_passes += 1,
+                    WorkoutResultKind::Fail => stats.consecutive_fails += 1,
+                },
+                Some(_) => {}
+            }
+        }
+
+        Ok(map)
     }
 
     pub async fn search(&self, params: MemoryCardSearch<'_>) -> AppResult<Vec<MemoryCard>> {
@@ -241,6 +340,48 @@ impl<'a> MemoryCardRepository<'a> {
             .await?;
 
         Ok(result.rows_affected() > 0)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CardReviewStats {
+    pub last_seen: Option<DateTime<Utc>>,
+    pub last_pass_at: Option<DateTime<Utc>>,
+    pub last_fail_at: Option<DateTime<Utc>>,
+    pub pass_count: i64,
+    pub fail_count: i64,
+    pub consecutive_passes: u32,
+    pub consecutive_fails: u32,
+    pub recent_results: Vec<WorkoutResultKind>,
+}
+
+impl Default for CardReviewStats {
+    fn default() -> Self {
+        Self {
+            last_seen: None,
+            last_pass_at: None,
+            last_fail_at: None,
+            pass_count: 0,
+            fail_count: 0,
+            consecutive_passes: 0,
+            consecutive_fails: 0,
+            recent_results: Vec::new(),
+        }
+    }
+}
+
+impl CardReviewStats {
+    pub fn total_reviews(&self) -> i64 {
+        self.pass_count + self.fail_count
+    }
+
+    pub fn fail_rate(&self) -> f64 {
+        let total = self.total_reviews();
+        if total == 0 {
+            0.0
+        } else {
+            (self.fail_count as f64 / total as f64).clamp(0.0, 1.0)
+        }
     }
 }
 

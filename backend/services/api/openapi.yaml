@@ -509,6 +509,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VaultSnapshotResponse'
+  /api/search:
+    get:
+      summary: Unified knowledge base search
+      operationId: searchIndex
+      parameters:
+        - name: q
+          in: query
+          description: Search query string
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum results per section (default 8)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+      responses:
+        '200':
+          description: Aggregated search results across entities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
   /api/settings/summary:
     get:
       summary: Data directory and record counts
@@ -557,6 +583,214 @@ components:
         - annotations
         - cards
         - evergreen
+    SearchResponse:
+      type: object
+      properties:
+        query:
+          type: string
+        cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchCardResult'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchEvidenceResult'
+        evergreen:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchEvergreenResult'
+        applications:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchApplicationResult'
+        directions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchDirectionResult'
+      required:
+        - query
+        - cards
+        - evidence
+        - evergreen
+        - applications
+        - directions
+    SearchCardResult:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        body:
+          type: string
+        card_type:
+          type: string
+        priority:
+          type: number
+          format: float
+        stability:
+          type: number
+          format: float
+        next_due:
+          type: string
+          nullable: true
+          format: date-time
+        direction_id:
+          type: string
+          format: uuid
+        direction_name:
+          type: string
+        skill_point_id:
+          type: string
+          format: uuid
+          nullable: true
+        skill_point_name:
+          type: string
+          nullable: true
+      required:
+        - id
+        - title
+        - body
+        - card_type
+        - priority
+        - stability
+        - direction_id
+        - direction_name
+    SearchEvidenceResult:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        excerpt:
+          type: string
+          nullable: true
+        source_type:
+          type: string
+        source_uri:
+          type: string
+          nullable: true
+        credibility:
+          type: integer
+        captured_at:
+          type: string
+          format: date-time
+        card_id:
+          type: string
+          format: uuid
+        card_title:
+          type: string
+        direction_id:
+          type: string
+          format: uuid
+        direction_name:
+          type: string
+      required:
+        - id
+        - source_type
+        - credibility
+        - captured_at
+        - card_id
+        - card_title
+        - direction_id
+        - direction_name
+    SearchEvergreenResult:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        summary:
+          type: string
+        stability:
+          type: number
+          format: float
+        application_count:
+          type: integer
+        last_applied_at:
+          type: string
+          format: date-time
+          nullable: true
+        direction_id:
+          type: string
+          format: uuid
+        direction_name:
+          type: string
+      required:
+        - id
+        - title
+        - summary
+        - stability
+        - application_count
+        - direction_id
+        - direction_name
+    SearchApplicationResult:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        context:
+          type: string
+        noted_at:
+          type: string
+          format: date-time
+        impact_score:
+          type: number
+          format: float
+        card_id:
+          type: string
+          format: uuid
+        card_title:
+          type: string
+        direction_id:
+          type: string
+          format: uuid
+        direction_name:
+          type: string
+        skill_point_id:
+          type: string
+          format: uuid
+          nullable: true
+        skill_point_name:
+          type: string
+          nullable: true
+      required:
+        - id
+        - context
+        - noted_at
+        - impact_score
+        - card_id
+        - card_title
+        - direction_id
+        - direction_name
+    SearchDirectionResult:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        stage:
+          $ref: '#/components/schemas/DirectionStage'
+        quarterly_goal:
+          type: string
+          nullable: true
+        card_count:
+          type: integer
+        skill_point_count:
+          type: integer
+      required:
+        - id
+        - name
+        - stage
+        - card_count
+        - skill_point_count
     VaultHighlight:
       type: object
       properties:
@@ -982,9 +1216,31 @@ components:
           $ref: '#/components/schemas/ProgressTotals'
         activity:
           $ref: '#/components/schemas/ProgressActivity'
+        mastery:
+          $ref: '#/components/schemas/ProgressMastery'
+        retention:
+          $ref: '#/components/schemas/ProgressRetention'
+        streaks:
+          $ref: '#/components/schemas/ProgressStreaks'
+        applications:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProgressApplication'
+        recommendations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProgressRecommendation'
+        momentum:
+          $ref: '#/components/schemas/ProgressMomentum'
       required:
         - totals
         - activity
+        - mastery
+        - retention
+        - streaks
+        - applications
+        - recommendations
+        - momentum
     ProgressTotals:
       type: object
       properties:
@@ -1018,6 +1274,219 @@ components:
         - workouts_completed_7d
         - new_cards_7d
         - applications_logged_7d
+    ProgressMastery:
+      type: object
+      properties:
+        directions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProgressDirectionMastery'
+        skill_gaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProgressSkillGap'
+      required:
+        - directions
+        - skill_gaps
+    ProgressDirectionMastery:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        stage:
+          $ref: '#/components/schemas/DirectionStage'
+        avg_skill_level:
+          type: number
+          format: float
+        card_count:
+          type: integer
+        due_next_7d:
+          type: integer
+        recent_pass_rate:
+          type: number
+          format: float
+      required:
+        - id
+        - name
+        - stage
+        - avg_skill_level
+        - card_count
+        - due_next_7d
+        - recent_pass_rate
+    ProgressSkillGap:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        direction_id:
+          type: string
+          format: uuid
+        direction_name:
+          type: string
+        name:
+          type: string
+        level:
+          $ref: '#/components/schemas/SkillLevel'
+        card_count:
+          type: integer
+        due_next_7d:
+          type: integer
+        recent_fail_rate:
+          type: number
+          format: float
+      required:
+        - id
+        - direction_id
+        - direction_name
+        - name
+        - level
+        - card_count
+        - due_next_7d
+        - recent_fail_rate
+    ProgressRetention:
+      type: object
+      properties:
+        retention_7d:
+          type: number
+          format: float
+        retention_30d:
+          type: number
+          format: float
+        retention_90d:
+          type: number
+          format: float
+        trend:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProgressRetentionSample'
+      required:
+        - retention_7d
+        - retention_30d
+        - retention_90d
+        - trend
+    ProgressRetentionSample:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        pass_rate:
+          type: number
+          format: float
+        total_reviews:
+          type: integer
+      required:
+        - date
+        - pass_rate
+        - total_reviews
+    ProgressStreaks:
+      type: object
+      properties:
+        current:
+          type: integer
+        longest:
+          type: integer
+        last_completed_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - current
+        - longest
+        - last_completed_at
+    ProgressRecommendation:
+      type: object
+      properties:
+        headline:
+          type: string
+        rationale:
+          type: string
+      required:
+        - headline
+        - rationale
+    ProgressApplication:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        card_id:
+          type: string
+          format: uuid
+        direction_id:
+          type: string
+          format: uuid
+        direction_name:
+          type: string
+        skill_point_id:
+          type: string
+          format: uuid
+          nullable: true
+        skill_point_name:
+          type: string
+          nullable: true
+        card_title:
+          type: string
+        context:
+          type: string
+        noted_at:
+          type: string
+          format: date-time
+        impact_score:
+          type: number
+          format: float
+      required:
+        - id
+        - card_id
+        - direction_id
+        - direction_name
+        - card_title
+        - context
+        - noted_at
+        - impact_score
+    ProgressMomentum:
+      type: object
+      properties:
+        knowledge_velocity:
+          $ref: '#/components/schemas/ProgressTrendSeries'
+        uncertainty_drop_rate:
+          $ref: '#/components/schemas/ProgressTrendSeries'
+      required:
+        - knowledge_velocity
+        - uncertainty_drop_rate
+    ProgressTrendSeries:
+      type: object
+      properties:
+        average_7d:
+          type: number
+          format: float
+        average_30d:
+          type: number
+          format: float
+        recent:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProgressTrendSample'
+      required:
+        - average_7d
+        - average_30d
+        - recent
+    ProgressTrendSample:
+      type: object
+      properties:
+        completed_at:
+          type: string
+          format: date-time
+        value:
+          type: number
+          format: float
+      required:
+        - completed_at
+        - value
     TreeSnapshotResponse:
       type: object
       properties:
@@ -1471,6 +1940,12 @@ components:
       properties:
         phase:
           $ref: '#/components/schemas/WorkoutPhase'
+        focus:
+          type: string
+          nullable: true
+        focus_details:
+          $ref: '#/components/schemas/WorkoutSegmentFocus'
+          nullable: true
         items:
           type: array
           items:
@@ -1478,6 +1953,82 @@ components:
       required:
         - phase
         - items
+    WorkoutSegmentFocus:
+      type: object
+      properties:
+        headline:
+          type: string
+        highlights:
+          type: array
+          items:
+            type: string
+        direction_breakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkoutSegmentDirectionFocus'
+        skill_breakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkoutSegmentSkillFocus'
+      required:
+        - headline
+        - highlights
+        - direction_breakdown
+        - skill_breakdown
+    WorkoutSegmentDirectionFocus:
+      type: object
+      properties:
+        direction_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        stage:
+          $ref: '#/components/schemas/DirectionStage'
+        count:
+          type: integer
+          format: int32
+        share:
+          type: number
+          format: double
+        signals:
+          type: array
+          items:
+            type: string
+      required:
+        - direction_id
+        - name
+        - stage
+        - count
+        - share
+        - signals
+    WorkoutSegmentSkillFocus:
+      type: object
+      properties:
+        skill_point_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        level:
+          $ref: '#/components/schemas/SkillLevel'
+        count:
+          type: integer
+          format: int32
+        share:
+          type: number
+          format: double
+        signals:
+          type: array
+          items:
+            type: string
+      required:
+        - skill_point_id
+        - name
+        - level
+        - count
+        - share
+        - signals
     WorkoutItemPlan:
       type: object
       properties:
@@ -1554,10 +2105,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/WorkoutCardProgress'
+        metrics:
+          $ref: '#/components/schemas/WorkoutSummaryMetrics'
+        insights:
+          type: array
+          items:
+            type: string
       required:
         - workout_id
         - completed_at
         - updates
+        - metrics
+        - insights
     WorkoutCardProgress:
       type: object
       properties:
@@ -1581,6 +2140,139 @@ components:
         - result
         - stability
         - priority
+    WorkoutSummaryMetrics:
+      type: object
+      properties:
+        total_items:
+          type: integer
+          format: int32
+        pass_count:
+          type: integer
+          format: int32
+        fail_count:
+          type: integer
+          format: int32
+        pass_rate:
+          type: number
+          format: float
+        kv_delta:
+          type: number
+          format: float
+        udr:
+          type: number
+          format: float
+        recommended_focus:
+          type: string
+          nullable: true
+        direction_breakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkoutSummaryDirectionBreakdown'
+        skill_breakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkoutSummarySkillBreakdown'
+      required:
+        - total_items
+        - pass_count
+        - fail_count
+        - pass_rate
+        - kv_delta
+        - udr
+        - direction_breakdown
+        - skill_breakdown
+    WorkoutSummaryDirectionBreakdown:
+      type: object
+      properties:
+        direction_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        stage:
+          $ref: '#/components/schemas/DirectionStage'
+        total:
+          type: integer
+          format: int32
+        pass_count:
+          type: integer
+          format: int32
+        fail_count:
+          type: integer
+          format: int32
+        pass_rate:
+          type: number
+          format: float
+        kv_delta:
+          type: number
+          format: float
+        udr:
+          type: number
+          format: float
+        avg_priority:
+          type: number
+          format: float
+        share:
+          type: number
+          format: float
+      required:
+        - direction_id
+        - name
+        - stage
+        - total
+        - pass_count
+        - fail_count
+        - pass_rate
+        - kv_delta
+        - udr
+        - avg_priority
+        - share
+    WorkoutSummarySkillBreakdown:
+      type: object
+      properties:
+        skill_point_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        level:
+          $ref: '#/components/schemas/SkillLevel'
+        total:
+          type: integer
+          format: int32
+        pass_count:
+          type: integer
+          format: int32
+        fail_count:
+          type: integer
+          format: int32
+        pass_rate:
+          type: number
+          format: float
+        kv_delta:
+          type: number
+          format: float
+        udr:
+          type: number
+          format: float
+        avg_priority:
+          type: number
+          format: float
+        share:
+          type: number
+          format: float
+      required:
+        - skill_point_id
+        - name
+        - level
+        - total
+        - pass_count
+        - fail_count
+        - pass_rate
+        - kv_delta
+        - udr
+        - avg_priority
+        - share
     SettingsSummaryResponse:
       type: object
       properties:

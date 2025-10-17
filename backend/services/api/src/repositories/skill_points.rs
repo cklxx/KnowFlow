@@ -29,6 +29,21 @@ impl<'a> SkillPointRepository<'a> {
             .collect()
     }
 
+    pub async fn list_all(&self) -> AppResult<Vec<SkillPoint>> {
+        let rows = sqlx::query(
+            "SELECT id, direction_id, name, summary, level, created_at, updated_at FROM skill_points ORDER BY created_at ASC",
+        )
+        .fetch_all(self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(SkillPointRow::try_from_row)
+            .collect::<Result<Vec<_>, AppError>>()?
+            .into_iter()
+            .map(|row| row.into_domain())
+            .collect()
+    }
+
     pub async fn create(
         &self,
         direction_id: Uuid,
