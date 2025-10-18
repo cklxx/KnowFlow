@@ -1,7 +1,13 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-import { searchIndex, type SearchParams, type SearchResponse } from '@api';
+import {
+  fetchSearchSuggestions,
+  searchIndex,
+  type SearchParams,
+  type SearchResponse,
+  type SearchSuggestionsResponse,
+} from '@api';
 
 const DEFAULT_LIMIT = 8;
 
@@ -25,3 +31,10 @@ export const useSearchResults = (params: SearchParams) => {
     staleTime: 30_000,
   });
 };
+
+export const useSearchSuggestions = () =>
+  useQuery<SearchSuggestionsResponse>({
+    queryKey: ['search-suggestions'],
+    queryFn: fetchSearchSuggestions,
+    staleTime: 120_000,
+  });

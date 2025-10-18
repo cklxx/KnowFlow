@@ -4,8 +4,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { DirectionList, MemoryCardList, SkillPointList } from '@/features/directions/components';
 import { DirectionDetail, DirectionSummaryList, useTreeSnapshot } from '@/features/tree';
 import { useTheme } from '@/providers';
-import { Screen } from '@/ui/components/Screen';
-import { Text } from '@/ui/components/Text';
+import { Card, Screen, Text } from '@/ui/components';
 
 export default function TreeScreen() {
   const { data, isLoading, isError } = useTreeSnapshot();
@@ -49,7 +48,7 @@ export default function TreeScreen() {
     return (
       <Screen>
         <View style={styles.center}>
-          <ActivityIndicator />
+          <ActivityIndicator color={theme.colors.accent} />
         </View>
       </Screen>
     );
@@ -59,10 +58,12 @@ export default function TreeScreen() {
     return (
       <Screen>
         <View style={styles.center}>
-          <Text variant="subtitle">无法加载方向树</Text>
-          <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
-            请稍后重试，或检查后端服务是否运行。
-          </Text>
+          <Card variant="outline" style={styles.statusCard}>
+            <Text variant="subtitle">方向树加载失败</Text>
+            <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
+              稍后再试。
+            </Text>
+          </Card>
         </View>
       </Screen>
     );
@@ -72,10 +73,10 @@ export default function TreeScreen() {
     <Screen>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text variant="title">方向树</Text>
-          <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
-            从方向 → 技能点 → 卡片的全景地图，辅助日常训练与应用。
-          </Text>
+          <View style={styles.titleRow}>
+            <Text variant="title">方向树</Text>
+            <Text variant="caption" style={{ color: theme.colors.textSecondary }}>概览</Text>
+          </View>
           <View style={styles.summaryRow}>
             <SummaryStat label="方向" value={branches.length} />
             <SummaryStat label="技能点" value={summary.skillPoints} />
@@ -83,7 +84,7 @@ export default function TreeScreen() {
           </View>
         </View>
 
-        <View style={styles.treeLayout}>
+        <Card variant="outline" style={styles.treeLayout}>
           <View style={styles.sidebar}>
             <DirectionSummaryList
               directions={branches}
@@ -94,34 +95,31 @@ export default function TreeScreen() {
           <View style={styles.detail}>
             <DirectionDetail branch={activeBranch} />
           </View>
-        </View>
+        </Card>
 
-        <View style={styles.manageSection}>
+        <Card variant="outline" style={styles.manageSection}>
           <Text variant="subtitle">结构管理</Text>
-          <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
-            在此维护方向、技能点与卡片映射，保持训练节奏稳定。
-          </Text>
           <View style={styles.managerGrid}>
-            <View style={styles.managerColumn}>
+            <Card variant="outline" style={styles.managerColumn}>
               <Text variant="caption" style={styles.managerLabel}>
                 方向
               </Text>
               <DirectionList selectedId={selectedDirectionId} onSelect={setSelectedDirectionId} />
-            </View>
-            <View style={styles.managerColumn}>
+            </Card>
+            <Card variant="outline" style={styles.managerColumn}>
               <Text variant="caption" style={styles.managerLabel}>
                 技能点
               </Text>
               <SkillPointList directionId={selectedDirectionId} />
-            </View>
-            <View style={styles.managerColumn}>
+            </Card>
+            <Card variant="outline" style={styles.managerColumn}>
               <Text variant="caption" style={styles.managerLabel}>
                 卡片
               </Text>
               <MemoryCardList directionId={selectedDirectionId} />
-            </View>
+            </Card>
           </View>
-        </View>
+        </Card>
       </ScrollView>
     </Screen>
   );
@@ -148,19 +146,27 @@ const styles = StyleSheet.create({
   header: {
     gap: 12,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   summaryRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
   summaryStat: {
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    flex: 1,
+    minWidth: 96,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 4,
+    borderRadius: 14,
   },
   treeLayout: {
-    gap: 20,
+    gap: 16,
+    padding: 20,
   },
   sidebar: {
     gap: 12,
@@ -170,12 +176,14 @@ const styles = StyleSheet.create({
   },
   manageSection: {
     gap: 16,
+    padding: 20,
   },
   managerGrid: {
-    gap: 20,
+    gap: 12,
   },
   managerColumn: {
     gap: 12,
+    padding: 16,
   },
   managerLabel: {
     marginBottom: 4,
@@ -184,6 +192,9 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 12,
+  },
+  statusCard: {
+    alignItems: 'flex-start',
   },
 });

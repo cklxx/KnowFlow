@@ -9,13 +9,15 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
 use crate::{
-    domain::DirectionStage,
+    domain::{DirectionStage, SkillLevel},
     error::{AppError, AppResult},
     state::AppState,
 };
 
 pub fn router() -> Router<AppState> {
-    Router::new().route("/api/search", get(search_index))
+    Router::new()
+        .route("/api/search", get(search_index))
+        .route("/api/search/suggestions", get(search_suggestions))
 }
 
 #[derive(Debug, Deserialize)]
@@ -97,6 +99,35 @@ struct SearchDirection {
     quarterly_goal: Option<String>,
     card_count: i64,
     skill_point_count: i64,
+}
+
+#[derive(Debug, Serialize)]
+struct SearchSuggestionResponse {
+    groups: Vec<SearchSuggestionGroup>,
+}
+
+#[derive(Debug, Serialize)]
+struct SearchSuggestionGroup {
+    id: String,
+    title: String,
+    hint: Option<String>,
+    items: Vec<SearchSuggestionItem>,
+}
+
+#[derive(Debug, Serialize)]
+struct SearchSuggestionItem {
+    id: String,
+    label: String,
+    description: Option<String>,
+    pill: Option<String>,
+    action: SearchSuggestionAction,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum SearchSuggestionAction {
+    Search { query: String },
+    Navigate { href: String },
 }
 
 async fn search_index(
@@ -365,6 +396,184 @@ LIMIT ?
         applications,
         directions,
     }))
+}
+
+async fn search_suggestions(
+    State(state): State<AppState>,
+) -> AppResult<Json<SearchSuggestionResponse>> {
+    let pool = state.pool();
+
+    let quickstart_rows = sqlx::query(
+        r#"
+SELECT
+    ca.id,
+    ca.context,
+    c.title AS card_title,
+    d.name AS direction_name
+FROM card_applications ca
+INNER JOIN memory_cards c ON c.id = ca.card_id
+INNER JOIN directions d ON d.id = c.direction_id
+ORDER BY ca.noted_at DESC
+LIMIT 3
+        "#,
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let quickstart_items = quickstart_rows
+        .into_iter()
+        .map(|row| {
+            let card_title: String = row.get("card_title");
+            let direction_name: String = row.get("direction_name");
+            let context: String = row.get("context");
+            SearchSuggestionItem {
+                id: row.get("id"),
+                label: format!("复盘 {card_title}"),
+                description: Some(format!(
+                    "{} · {}",
+                    direction_name,
+                    truncate_preview(&context, 32)
+                )),
+                pill: Some("推荐".to_string()),
+                action: SearchSuggestionAction::Search { query: card_title },
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let direction_rows = sqlx::query(
+        r#"
+SELECT
+    d.id,
+    d.name,
+    d.stage,
+    d.updated_at,
+    COUNT(mc.id) AS card_count
+FROM directions d
+LEFT JOIN memory_cards mc ON mc.direction_id = d.id
+GROUP BY d.id, d.name, d.stage, d.updated_at
+ORDER BY d.updated_at DESC
+LIMIT 4
+        "#,
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let direction_items = direction_rows
+        .into_iter()
+        .filter_map(|row| {
+            let stage_raw: String = row.get("stage");
+            let stage = DirectionStage::from_str(&stage_raw).ok()?;
+            let id: String = row.get("id");
+            let name: String = row.get("name");
+            let card_count: i64 = row.get("card_count");
+            Some(SearchSuggestionItem {
+                id: format!("suggest-dir-{id}"),
+                label: name.clone(),
+                description: Some(format!("{} · {} 张卡片", stage_label(&stage), card_count)),
+                pill: Some(stage_label(&stage).to_string()),
+                action: SearchSuggestionAction::Navigate {
+                    href: format!("/tree?direction={id}"),
+                },
+            })
+        })
+        .collect::<Vec<_>>();
+
+    let skill_rows = sqlx::query(
+        r#"
+SELECT
+    sp.id,
+    sp.name,
+    sp.level,
+    sp.updated_at,
+    COUNT(mc.id) AS card_count
+FROM skill_points sp
+LEFT JOIN memory_cards mc ON mc.skill_point_id = sp.id
+GROUP BY sp.id, sp.name, sp.level, sp.updated_at
+ORDER BY sp.updated_at DESC
+LIMIT 4
+        "#,
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let skill_items = skill_rows
+        .into_iter()
+        .map(|row| {
+            let id: String = row.get("id");
+            let name: String = row.get("name");
+            let level_value: i64 = row.get("level");
+            let level = SkillLevel::clamp(level_value as i32);
+            let card_count: i64 = row.get("card_count");
+            SearchSuggestionItem {
+                id: format!("suggest-skill-{id}"),
+                label: name.clone(),
+                description: Some(format!(
+                    "{} · {} 张卡片",
+                    skill_level_label(level),
+                    card_count
+                )),
+                pill: Some("技能".to_string()),
+                action: SearchSuggestionAction::Search { query: name },
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let mut groups = Vec::new();
+    if !quickstart_items.is_empty() {
+        groups.push(SearchSuggestionGroup {
+            id: "quickstart".to_string(),
+            title: "快速提示".to_string(),
+            hint: Some("结合最近训练推荐的检索词与操作".to_string()),
+            items: quickstart_items,
+        });
+    }
+
+    if !direction_items.is_empty() {
+        groups.push(SearchSuggestionGroup {
+            id: "recent-directions".to_string(),
+            title: "最近方向".to_string(),
+            hint: None,
+            items: direction_items,
+        });
+    }
+
+    if !skill_items.is_empty() {
+        groups.push(SearchSuggestionGroup {
+            id: "skill-focus".to_string(),
+            title: "技能热区".to_string(),
+            hint: Some("点击快速检索相关卡片与证据".to_string()),
+            items: skill_items,
+        });
+    }
+
+    Ok(Json(SearchSuggestionResponse { groups }))
+}
+
+fn stage_label(stage: &DirectionStage) -> &'static str {
+    match stage {
+        DirectionStage::Explore => "探索",
+        DirectionStage::Shape => "成型",
+        DirectionStage::Attack => "攻坚",
+        DirectionStage::Stabilize => "固化",
+    }
+}
+
+fn skill_level_label(level: SkillLevel) -> &'static str {
+    match level {
+        SkillLevel::Unknown => "待熟悉",
+        SkillLevel::Emerging => "萌芽",
+        SkillLevel::Working => "实战中",
+        SkillLevel::Fluent => "自如",
+    }
+}
+
+fn truncate_preview(value: &str, limit: usize) -> String {
+    let trimmed = value.trim();
+    if trimmed.chars().count() <= limit {
+        return trimmed.to_string();
+    }
+    let snippet: String = trimmed.chars().take(limit).collect();
+    format!("{snippet}…")
 }
 
 fn escape_like(input: &str) -> String {

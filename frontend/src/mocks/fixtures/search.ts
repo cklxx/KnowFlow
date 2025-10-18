@@ -1,4 +1,4 @@
-import type { SearchResponse } from '@api';
+import type { SearchResponse, SearchSuggestionsResponse } from '@api';
 
 export const mockSearchResponse: SearchResponse = {
   query: 'embedding',
@@ -78,6 +78,73 @@ export const mockSearchResponse: SearchResponse = {
       quarterly_goal: '上线 embedding 监控体系并完成一次回归分析。',
       card_count: 42,
       skill_point_count: 6,
+    },
+  ],
+};
+
+export const mockSearchSuggestions: SearchSuggestionsResponse = {
+  groups: [
+    {
+      id: 'quickstart',
+      title: '快速提示',
+      hint: '结合最近训练推荐的检索词与操作',
+      items: [
+        {
+          id: 'quick-embedding-review',
+          label: '复盘 embedding 监控',
+          description: '回顾最近一次漂移复盘提到的三步检查表。',
+          pill: '推荐',
+          action: { type: 'search', query: 'embedding' },
+        },
+        {
+          id: 'quick-draft-async',
+          label: '向 AI 请求 async 诊断清单',
+          description: '打开 Draft Studio 生成针对 async runtime 的检查项。',
+          pill: 'AI Draft',
+          action: { type: 'navigate', href: '/(tabs)/intelligence' },
+        },
+      ],
+    },
+    {
+      id: 'recent-directions',
+      title: '最近方向',
+      items: [
+        {
+          id: 'suggest-dir-rag',
+          label: 'AI × Retrieval',
+          description: '攻坚 · 48 张卡片',
+          pill: '攻坚',
+          action: { type: 'navigate', href: '/tree?direction=dir-rag' },
+        },
+        {
+          id: 'suggest-dir-systems',
+          label: 'Rust × Systems',
+          description: '成型 · 36 张卡片',
+          pill: '成型',
+          action: { type: 'navigate', href: '/tree?direction=dir-systems' },
+        },
+      ],
+    },
+    {
+      id: 'skill-focus',
+      title: '技能热区',
+      hint: '点击快速检索相关卡片与证据',
+      items: [
+        {
+          id: 'suggest-skill-embedding',
+          label: 'Embedding 质量诊断',
+          description: '5 张卡片 · 近期 4 条证据更新',
+          pill: '技能',
+          action: { type: 'search', query: 'Embedding 质量诊断' },
+        },
+        {
+          id: 'suggest-skill-async',
+          label: 'Async Runtime Mastery',
+          description: '4 张卡片 · 最近 2 次应用记录',
+          pill: '技能',
+          action: { type: 'search', query: 'Async Runtime' },
+        },
+      ],
     },
   ],
 };
