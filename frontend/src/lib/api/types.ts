@@ -325,6 +325,19 @@ export type SettingsExport = {
   applications: SettingsCardApplicationExport[];
 };
 
+export type NotificationDeepLinkTarget = 'today' | 'quiz' | 'review';
+
+export type NotificationPreferences = {
+  daily_reminder_enabled: boolean;
+  daily_reminder_time: string;
+  daily_reminder_target: NotificationDeepLinkTarget;
+  due_reminder_enabled: boolean;
+  due_reminder_time: string;
+  due_reminder_target: NotificationDeepLinkTarget;
+  remind_before_due_minutes: number;
+  updated_at: string;
+};
+
 export type OnboardingSkillSeed = {
   name: string;
   summary?: string | null;
@@ -654,4 +667,27 @@ export type SearchDirectionResult = {
   quarterly_goal: string | null;
   card_count: number;
   skill_point_count: number;
+};
+
+export type SearchSuggestionAction =
+  | { type: 'search'; query: string }
+  | { type: 'navigate'; href: string };
+
+export type SearchSuggestionItem = {
+  id: string;
+  label: string;
+  description?: string | null;
+  pill?: string | null;
+  action: SearchSuggestionAction;
+};
+
+export type SearchSuggestionGroup = {
+  id: string;
+  title: string;
+  hint?: string | null;
+  items: SearchSuggestionItem[];
+};
+
+export type SearchSuggestionsResponse = {
+  groups: SearchSuggestionGroup[];
 };

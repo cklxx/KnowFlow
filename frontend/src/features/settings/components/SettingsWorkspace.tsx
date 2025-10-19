@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { useTheme } from '@/providers';
-import { Button, Card, Screen, Text } from '@/ui/components';
+import { Button, Card, Screen, SegmentedControl, Text } from '@/ui/components';
 
-import { useSettingsExport, useSettingsSummary } from '../hooks';
+import { useSettingsExport, useSettingsSummary, useNotificationPreferences, useUpdateNotificationPreferences } from '../hooks';
+import type { NotificationPreferences } from '@api';
 
 const formatBytes = (size: number) => {
   if (!Number.isFinite(size) || size <= 0) {
@@ -51,12 +52,39 @@ const EXPORT_LABELS: Record<keyof ExportCounts, string> = {
   applications: '应用记录',
 };
 
+const DAILY_REMINDER_OPTIONS = [
+  { value: '20:30', label: '20:30', description: '晚饭后' },
+  { value: '21:00', label: '21:00', description: '黄金复盘时间' },
+  { value: '21:30', label: '21:30', description: '睡前提醒' },
+];
+
+const DUE_REMINDER_OPTIONS = [
+  { value: '19:00', label: '19:00', description: '晚饭前' },
+  { value: '20:00', label: '20:00', description: '黄金复盘' },
+  { value: '21:00', label: '21:00', description: '睡前最后提醒' },
+];
+
+const REMIND_LEAD_OPTIONS = [
+  { value: '30', label: '提前 30 分钟' },
+  { value: '45', label: '提前 45 分钟' },
+  { value: '60', label: '提前 60 分钟' },
+];
+
+const TARGET_OPTIONS = [
+  { value: 'today', label: 'Today 首页', description: '进入训练概览' },
+  { value: 'quiz', label: '快问快答', description: '直接开始 T-2' },
+  { value: 'review', label: '巩固回顾', description: '查看待复习队列' },
+];
+
 export const SettingsWorkspace = () => {
   const { theme } = useTheme();
   const { data: summary, isLoading, isRefetching, refetch } = useSettingsSummary();
   const exportMutation = useSettingsExport();
   const [exportCounts, setExportCounts] = useState<ExportCounts | null>(null);
   const [exportedAt, setExportedAt] = useState<string | null>(null);
+  const { data: notificationPrefs, isLoading: loadingNotificationPrefs } = useNotificationPreferences();
+  const updateNotifications = useUpdateNotificationPreferences();
+  const [localNotificationPrefs, setLocalNotificationPrefs] = useState<NotificationPreferences | null>(null);
 
   const totalRecords = useMemo(
     () =>
@@ -65,6 +93,39 @@ export const SettingsWorkspace = () => {
         : 0,
     [exportCounts],
   );
+
+  useEffect(() => {
+    if (notificationPrefs) {
+      setLocalNotificationPrefs(notificationPrefs);
+    }
+  }, [notificationPrefs]);
+
+  const handleNotificationChange = async (
+    patch: Partial<Omit<NotificationPreferences, 'updated_at'>>,
+  ) => {
+    if (!localNotificationPrefs) {
+      return;
+    }
+    const previous = localNotificationPrefs;
+    const next = { ...localNotificationPrefs, ...patch };
+    setLocalNotificationPrefs(next);
+    try {
+      const updated = await updateNotifications.mutateAsync({
+        daily_reminder_enabled: next.daily_reminder_enabled,
+        daily_reminder_time: next.daily_reminder_time,
+        daily_reminder_target: next.daily_reminder_target,
+        due_reminder_enabled: next.due_reminder_enabled,
+        due_reminder_time: next.due_reminder_time,
+        due_reminder_target: next.due_reminder_target,
+        remind_before_due_minutes: next.remind_before_due_minutes,
+      });
+      setLocalNotificationPrefs(updated);
+    } catch (error) {
+      setLocalNotificationPrefs(previous);
+      const message = error instanceof Error ? error.message : '未知错误';
+      Alert.alert('更新失败', message);
+    }
+  };
 
   const handleExport = async () => {
     try {
@@ -152,6 +213,126 @@ export const SettingsWorkspace = () => {
           />
         </Card>
         <Card>
+          <Text variant="subtitle">通知与提醒</Text>
+          {loadingNotificationPrefs && !localNotificationPrefs ? (
+            <Text>正在加载通知偏好…</Text>
+          ) : localNotificationPrefs ? (
+            <View style={styles.preferenceGroup}>
+              <View style={[styles.preferenceRow, { borderBottomColor: theme.colors.border }]}> 
+                <View style={styles.preferenceColumn}>
+                  <Text style={styles.statLabel}>每日提醒</Text>
+                  <Text style={styles.statHint} variant="caption">
+                    晚间提醒完成 Today 训练，可一键深链到指定步骤。
+                  </Text>
+                </View>
+                <Switch
+                  accessibilityRole="switch"
+                  accessibilityLabel="切换每日提醒"
+                  value={localNotificationPrefs.daily_reminder_enabled}
+                  onValueChange={(value) =>
+                    handleNotificationChange({ daily_reminder_enabled: value })
+                  }
+                  trackColor={{ false: theme.colors.border, true: theme.colors.accent }}
+                  thumbColor={theme.colors.surface}
+                />
+              </View>
+              {localNotificationPrefs.daily_reminder_enabled ? (
+                <>
+                  <View style={styles.preferenceControl}>
+                    <Text style={styles.preferenceLabel}>提醒时间</Text>
+                    <SegmentedControl
+                      options={DAILY_REMINDER_OPTIONS}
+                      value={localNotificationPrefs.daily_reminder_time}
+                      onChange={(value) =>
+                        handleNotificationChange({ daily_reminder_time: value })
+                      }
+                    />
+                  </View>
+                  <View style={styles.preferenceControl}>
+                    <Text style={styles.preferenceLabel}>打开页面</Text>
+                    <SegmentedControl
+                      options={TARGET_OPTIONS}
+                      value={localNotificationPrefs.daily_reminder_target}
+                      onChange={(value) =>
+                        handleNotificationChange({
+                          daily_reminder_target: value as NotificationPreferences['daily_reminder_target'],
+                        })
+                      }
+                    />
+                  </View>
+                </>
+              ) : null}
+
+              <View style={[styles.preferenceRow, { borderBottomColor: theme.colors.border }]}> 
+                <View style={styles.preferenceColumn}>
+                  <Text style={styles.statLabel}>逾期提醒</Text>
+                  <Text style={styles.statHint} variant="caption">
+                    当日仍有卡片未完成时，晚上再次提醒你回顾。
+                  </Text>
+                </View>
+                <Switch
+                  accessibilityRole="switch"
+                  accessibilityLabel="切换逾期提醒"
+                  value={localNotificationPrefs.due_reminder_enabled}
+                  onValueChange={(value) =>
+                    handleNotificationChange({ due_reminder_enabled: value })
+                  }
+                  trackColor={{ false: theme.colors.border, true: theme.colors.accent }}
+                  thumbColor={theme.colors.surface}
+                />
+              </View>
+              {localNotificationPrefs.due_reminder_enabled ? (
+                <>
+                  <View style={styles.preferenceControl}>
+                    <Text style={styles.preferenceLabel}>提醒时间</Text>
+                    <SegmentedControl
+                      options={DUE_REMINDER_OPTIONS}
+                      value={localNotificationPrefs.due_reminder_time}
+                      onChange={(value) =>
+                        handleNotificationChange({ due_reminder_time: value })
+                      }
+                    />
+                  </View>
+                  <View style={styles.preferenceControl}>
+                    <Text style={styles.preferenceLabel}>打开页面</Text>
+                    <SegmentedControl
+                      options={TARGET_OPTIONS}
+                      value={localNotificationPrefs.due_reminder_target}
+                      onChange={(value) =>
+                        handleNotificationChange({
+                          due_reminder_target: value as NotificationPreferences['due_reminder_target'],
+                        })
+                      }
+                    />
+                  </View>
+                  <View style={styles.preferenceControl}>
+                    <Text style={styles.preferenceLabel}>提前时间</Text>
+                    <SegmentedControl
+                      options={REMIND_LEAD_OPTIONS}
+                      value={String(localNotificationPrefs.remind_before_due_minutes)}
+                      onChange={(value) =>
+                        handleNotificationChange({
+                          remind_before_due_minutes: Number.parseInt(value, 10),
+                        })
+                      }
+                    />
+                  </View>
+                </>
+              ) : null}
+
+              <Text
+                variant="caption"
+                style={[styles.preferenceMeta, { color: theme.colors.textMuted }]}
+              >
+                最近更新于 {formatDate(localNotificationPrefs.updated_at)}
+                {updateNotifications.isPending ? ' · 正在保存…' : ''}
+              </Text>
+            </View>
+          ) : (
+            <Text>暂无通知设置。</Text>
+          )}
+        </Card>
+        <Card>
           <Text variant="subtitle">导出 JSON 快照</Text>
           <Text>
             生成一份包含方向、技能点、卡片、证据与训练记录的 JSON，便于手动备份或导入至其他工具。
@@ -224,5 +405,31 @@ const styles = StyleSheet.create({
   totalText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  preferenceGroup: {
+    marginTop: 12,
+    gap: 16,
+  },
+  preferenceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  preferenceColumn: {
+    flex: 1,
+    gap: 4,
+  },
+  preferenceControl: {
+    gap: 8,
+  },
+  preferenceLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  preferenceMeta: {
+    marginTop: 4,
   },
 });

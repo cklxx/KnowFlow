@@ -1,14 +1,25 @@
-use axum::{extract::State, routing::get, Json, Router};
-use serde::Serialize;
+use std::str::FromStr;
+
+use axum::{
+    extract::State,
+    routing::{get, put},
+    Json, Router,
+};
+use chrono::{NaiveTime, Utc};
+use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Row};
 
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/settings/summary", get(get_settings_summary))
         .route("/api/settings/export", get(get_settings_export))
+        .route(
+            "/api/settings/notifications",
+            get(get_notification_preferences).put(update_notification_preferences),
+        )
 }
 
 #[derive(Debug, Serialize)]
@@ -119,6 +130,75 @@ struct SettingsCardApplicationExport {
     card_id: String,
     context: String,
     noted_at: String,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum NotificationTarget {
+    Today,
+    Quiz,
+    Review,
+}
+
+impl NotificationTarget {
+    fn as_str(&self) -> &'static str {
+        match self {
+            NotificationTarget::Today => "today",
+            NotificationTarget::Quiz => "quiz",
+            NotificationTarget::Review => "review",
+        }
+    }
+}
+
+impl FromStr for NotificationTarget {
+    type Err = AppError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "today" => Ok(NotificationTarget::Today),
+            "quiz" => Ok(NotificationTarget::Quiz),
+            "review" => Ok(NotificationTarget::Review),
+            other => Err(AppError::Validation(format!(
+                "unsupported notification target: {}",
+                other
+            ))),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct NotificationPreferencesResponse {
+    daily_reminder_enabled: bool,
+    daily_reminder_time: String,
+    daily_reminder_target: NotificationTarget,
+    due_reminder_enabled: bool,
+    due_reminder_time: String,
+    due_reminder_target: NotificationTarget,
+    remind_before_due_minutes: i64,
+    updated_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct UpdateNotificationPreferencesRequest {
+    daily_reminder_enabled: bool,
+    daily_reminder_time: String,
+    daily_reminder_target: NotificationTarget,
+    due_reminder_enabled: bool,
+    due_reminder_time: String,
+    due_reminder_target: NotificationTarget,
+    remind_before_due_minutes: i64,
+}
+
+#[derive(Debug, FromRow)]
+struct NotificationPreferencesRow {
+    daily_reminder_enabled: i64,
+    daily_reminder_time: String,
+    daily_reminder_target: String,
+    due_reminder_enabled: i64,
+    due_reminder_time: String,
+    due_reminder_target: String,
+    remind_before_due_minutes: i64,
+    updated_at: String,
 }
 
 async fn get_settings_summary(
@@ -292,4 +372,115 @@ ORDER BY noted_at ASC
         workout_items,
         applications,
     }))
+}
+
+async fn get_notification_preferences(
+    State(state): State<AppState>,
+) -> AppResult<Json<NotificationPreferencesResponse>> {
+    let pool = state.pool();
+
+    let record = sqlx::query_as::<_, NotificationPreferencesRow>(
+        r#"
+SELECT
+    daily_reminder_enabled,
+    daily_reminder_time,
+    daily_reminder_target,
+    due_reminder_enabled,
+    due_reminder_time,
+    due_reminder_target,
+    remind_before_due_minutes,
+    updated_at
+FROM notification_preferences
+WHERE id = 1
+        "#,
+    )
+    .fetch_optional(pool)
+    .await?;
+
+    let row = if let Some(row) = record {
+        row
+    } else {
+        return Ok(Json(NotificationPreferencesResponse {
+            daily_reminder_enabled: true,
+            daily_reminder_time: "21:00".to_string(),
+            daily_reminder_target: NotificationTarget::Today,
+            due_reminder_enabled: true,
+            due_reminder_time: "20:30".to_string(),
+            due_reminder_target: NotificationTarget::Review,
+            remind_before_due_minutes: 45,
+            updated_at: Utc::now().to_rfc3339(),
+        }));
+    };
+
+    let daily_target = NotificationTarget::from_str(&row.daily_reminder_target)?;
+    let due_target = NotificationTarget::from_str(&row.due_reminder_target)?;
+
+    Ok(Json(NotificationPreferencesResponse {
+        daily_reminder_enabled: row.daily_reminder_enabled != 0,
+        daily_reminder_time: row.daily_reminder_time,
+        daily_reminder_target: daily_target,
+        due_reminder_enabled: row.due_reminder_enabled != 0,
+        due_reminder_time: row.due_reminder_time,
+        due_reminder_target: due_target,
+        remind_before_due_minutes: row.remind_before_due_minutes,
+        updated_at: row.updated_at,
+    }))
+}
+
+async fn update_notification_preferences(
+    State(state): State<AppState>,
+    Json(payload): Json<UpdateNotificationPreferencesRequest>,
+) -> AppResult<Json<NotificationPreferencesResponse>> {
+    NaiveTime::parse_from_str(&payload.daily_reminder_time, "%H:%M").map_err(|_| {
+        AppError::Validation("daily_reminder_time must be in HH:MM format".to_string())
+    })?;
+    NaiveTime::parse_from_str(&payload.due_reminder_time, "%H:%M").map_err(|_| {
+        AppError::Validation("due_reminder_time must be in HH:MM format".to_string())
+    })?;
+
+    if payload.remind_before_due_minutes < 0 {
+        return Err(AppError::Validation(
+            "remind_before_due_minutes must be non-negative".to_string(),
+        ));
+    }
+
+    let pool = state.pool();
+
+    sqlx::query(
+        r#"
+INSERT INTO notification_preferences (
+    id,
+    daily_reminder_enabled,
+    daily_reminder_time,
+    daily_reminder_target,
+    due_reminder_enabled,
+    due_reminder_time,
+    due_reminder_target,
+    remind_before_due_minutes,
+    created_at,
+    updated_at
+)
+VALUES (1, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+ON CONFLICT(id) DO UPDATE SET
+    daily_reminder_enabled = excluded.daily_reminder_enabled,
+    daily_reminder_time = excluded.daily_reminder_time,
+    daily_reminder_target = excluded.daily_reminder_target,
+    due_reminder_enabled = excluded.due_reminder_enabled,
+    due_reminder_time = excluded.due_reminder_time,
+    due_reminder_target = excluded.due_reminder_target,
+    remind_before_due_minutes = excluded.remind_before_due_minutes,
+    updated_at = datetime('now')
+        "#,
+    )
+    .bind(if payload.daily_reminder_enabled { 1 } else { 0 })
+    .bind(&payload.daily_reminder_time)
+    .bind(payload.daily_reminder_target.as_str())
+    .bind(if payload.due_reminder_enabled { 1 } else { 0 })
+    .bind(&payload.due_reminder_time)
+    .bind(payload.due_reminder_target.as_str())
+    .bind(payload.remind_before_due_minutes)
+    .execute(pool)
+    .await?;
+
+    get_notification_preferences(State(state)).await
 }

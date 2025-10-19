@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useTheme } from '@/providers';
 import { Card, Text } from '@/ui/components';
+import { formatDirectionStageLabel } from '@/lib/formatters';
 
 type Props = {
   directions: TreeDirectionBranch[];
@@ -16,8 +17,7 @@ export const DirectionSummaryList = ({ directions, selectedId, onSelect }: Props
   if (!directions.length) {
     return (
       <Card variant="outline" style={styles.emptyCard}>
-        <Text variant="subtitle">还没有方向</Text>
-        <Text variant="caption">使用下方的管理表单创建第一个方向与技能点。</Text>
+        <Text variant="subtitle">暂无方向</Text>
       </Card>
     );
   }
@@ -52,7 +52,7 @@ export const DirectionSummaryList = ({ directions, selectedId, onSelect }: Props
                     variant="caption"
                     style={{ color: isSelected ? theme.colors.background : theme.colors.textSecondary }}
                   >
-                    {branch.direction.stage}
+                    {formatDirectionStageLabel(branch.direction.stage)}
                   </Text>
                 </View>
               </View>

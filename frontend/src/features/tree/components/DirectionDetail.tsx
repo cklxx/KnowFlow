@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { useTheme } from '@/providers';
 import { Card, Text } from '@/ui/components';
+import { formatDirectionStageLabel, formatSkillLevelLabel } from '@/lib/formatters';
 
 type Props = {
   branch: TreeDirectionBranch | undefined;
@@ -14,8 +15,7 @@ export const DirectionDetail = ({ branch }: Props) => {
   if (!branch) {
     return (
       <Card variant="outline" style={styles.placeholder}>
-        <Text variant="subtitle">选择左侧的方向</Text>
-        <Text variant="caption">查看技能点掌握情况与卡片网络。</Text>
+        <Text variant="subtitle">选择方向</Text>
       </Card>
     );
   }
@@ -27,7 +27,7 @@ export const DirectionDetail = ({ branch }: Props) => {
           <View style={styles.headerText}>
             <Text variant="title">{branch.direction.name}</Text>
             <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
-              阶段：{branch.direction.stage} · {branch.metrics.card_count} 张卡片
+              {formatDirectionStageLabel(branch.direction.stage)}阶段 · {branch.metrics.card_count} 卡片
             </Text>
           </View>
           {branch.direction.quarterly_goal ? (
@@ -46,9 +46,6 @@ export const DirectionDetail = ({ branch }: Props) => {
 
       <View style={styles.section}>
         <Text variant="subtitle">技能点路径</Text>
-        <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
-          依据掌握度与卡片数量自动排序。
-        </Text>
         {branch.skill_points.length ? (
           <View style={styles.skillList}>
             {branch.skill_points.map((node) => (
@@ -57,11 +54,11 @@ export const DirectionDetail = ({ branch }: Props) => {
                   <View style={styles.skillTitle}>
                     <Text variant="subtitle">{node.skill_point.name}</Text>
                     <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
-                      {node.skill_point.summary ?? '未填写摘要'}
+                      {node.skill_point.summary ?? '暂无摘要'}
                     </Text>
                   </View>
                   <View style={[styles.levelBadge, { backgroundColor: theme.colors.surfaceAlt }]}>
-                    <Text variant="caption">{node.skill_point.level}</Text>
+                    <Text variant="caption">{formatSkillLevelLabel(node.skill_point.level)}</Text>
                   </View>
                 </View>
                 <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
@@ -74,7 +71,7 @@ export const DirectionDetail = ({ branch }: Props) => {
                   {!node.cards.length ? (
                     <View style={[styles.cardEmpty, { borderColor: theme.colors.border }]}>
                       <Text variant="caption" style={{ color: theme.colors.textMuted }}>
-                        暂无卡片，尝试导入材料或从训练生成。
+                        暂无卡片
                       </Text>
                     </View>
                   ) : null}
@@ -85,7 +82,7 @@ export const DirectionDetail = ({ branch }: Props) => {
         ) : (
           <Card variant="outline" style={styles.emptyNotice}>
             <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
-              尚未记录技能点，可在下方“结构管理”中补充。
+              暂无技能点
             </Text>
           </Card>
         )}
@@ -94,9 +91,6 @@ export const DirectionDetail = ({ branch }: Props) => {
       {branch.orphan_cards.length ? (
         <View style={styles.section}>
           <Text variant="subtitle">未归属的卡片</Text>
-          <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
-            这些卡片尚未挂接到技能点，可在下方管理区补充分类。
-          </Text>
           <View style={styles.cardList}>
             {branch.orphan_cards.map((card) => (
               <CardRow key={card.id} card={card} />
@@ -141,7 +135,7 @@ const CardRow = ({ card }: { card: TreeCardSummary }) => {
       </Text>
       <View style={styles.cardMetaRow}>
         <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
-          复习：{formatDue(card.next_due)}
+          复习 {formatDue(card.next_due)}
         </Text>
         <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
           证据 {card.evidence_count} · 应用 {card.application_count}

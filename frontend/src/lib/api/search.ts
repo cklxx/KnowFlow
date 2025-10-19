@@ -1,5 +1,5 @@
 import { apiFetch } from './client';
-import type { SearchResponse } from './types';
+import type { SearchResponse, SearchSuggestionsResponse } from './types';
 
 export type SearchParams = {
   q?: string;
@@ -13,3 +13,6 @@ export const searchIndex = (params: SearchParams) =>
       limit: params.limit ? String(params.limit) : undefined,
     },
   });
+
+export const fetchSearchSuggestions = () =>
+  apiFetch<SearchSuggestionsResponse>('/api/search/suggestions');

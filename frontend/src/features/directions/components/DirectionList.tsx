@@ -10,8 +10,9 @@ import {
 } from '../hooks';
 import { Text } from '@/ui/components/Text';
 import type { DirectionStage } from '@api';
+import { formatDirectionStageLabel } from '@/lib/formatters';
 
-const STAGES: DirectionStage[] = ['explore', 'shape', 'attack', 'stabilize'];
+const STAGE_OPTIONS: DirectionStage[] = ['explore', 'shape', 'attack', 'stabilize'];
 
 type Props = {
   onSelect: (directionId: string | undefined) => void;
@@ -164,7 +165,7 @@ export const DirectionList = ({ onSelect, selectedId }: Props) => {
                 placeholderTextColor={theme.colors.textMuted}
               />
               <View style={styles.stageRow}>
-                {STAGES.map((option) => (
+                {STAGE_OPTIONS.map((option) => (
                   <Pressable
                     key={option}
                     onPress={() => setEditStage(option)}
@@ -180,7 +181,7 @@ export const DirectionList = ({ onSelect, selectedId }: Props) => {
                       variant="caption"
                       style={{ color: editStage === option ? theme.colors.background : theme.colors.textSecondary }}
                     >
-                      {option}
+                      {formatDirectionStageLabel(option)}
                     </Text>
                   </Pressable>
                 ))}
@@ -236,9 +237,9 @@ export const DirectionList = ({ onSelect, selectedId }: Props) => {
             ]}
           >
             <Text variant="subtitle">{item.name}</Text>
-            <Text variant="caption">Stage: {item.stage}</Text>
+            <Text variant="caption">阶段：{formatDirectionStageLabel(item.stage)}</Text>
             {item.quarterly_goal ? (
-              <Text variant="caption">Goal: {item.quarterly_goal}</Text>
+              <Text variant="caption">季度目标：{item.quarterly_goal}</Text>
             ) : null}
             <Pressable
               style={[styles.editButton, { backgroundColor: theme.colors.surfaceAlt }]}
@@ -312,7 +313,7 @@ const DirectionForm = ({
         editable={!submitting}
       />
       <View style={styles.stageRow}>
-        {STAGES.map((option) => (
+        {STAGE_OPTIONS.map((option) => (
           <Pressable
             key={option}
             onPress={() => onStageChange(option)}
@@ -329,7 +330,7 @@ const DirectionForm = ({
               variant="caption"
               style={{ color: stage === option ? theme.colors.background : theme.colors.textSecondary }}
             >
-              {option}
+              {formatDirectionStageLabel(option)}
             </Text>
           </Pressable>
         ))}

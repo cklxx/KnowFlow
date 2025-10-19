@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/ui/components/Text';
 import { useTheme, useToast } from '@/providers';
 import type { WorkoutSegmentFocus } from '@api';
+import { formatDirectionStageLabel, formatSkillLevelLabel } from '@/lib/formatters';
 import {
   useCompleteWorkout,
   useTodayItems,
@@ -23,36 +24,6 @@ const formatPhaseLabel = (phase: string) => {
       return 'Reinforce';
     default:
       return phase;
-  }
-};
-
-const formatStageLabel = (stage: string) => {
-  switch (stage) {
-    case 'explore':
-      return '探索';
-    case 'shape':
-      return '成型';
-    case 'attack':
-      return '攻坚';
-    case 'stabilize':
-      return '固化';
-    default:
-      return stage;
-  }
-};
-
-const formatSkillLevel = (level: string) => {
-  switch (level) {
-    case 'unknown':
-      return '未评估';
-    case 'emerging':
-      return '起步';
-    case 'working':
-      return '攻坚';
-    case 'fluent':
-      return '固化';
-    default:
-      return level;
   }
 };
 
@@ -359,7 +330,7 @@ export const TodaysStack = () => {
                       </Text>
                     </View>
                     <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
-                      {formatStageLabel(direction.stage)} · 通过率 {formatRate(direction.pass_rate)} · KV{' '}
+                      {formatDirectionStageLabel(direction.stage)} · 通过率 {formatRate(direction.pass_rate)} · KV{' '}
                       {formatKvDelta(direction.kv_delta)} · UDR {formatUdr(direction.udr)}
                     </Text>
                     <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
@@ -396,7 +367,7 @@ export const TodaysStack = () => {
                       </Text>
                     </View>
                     <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
-                      {formatSkillLevel(skill.level)} · 通过率 {formatRate(skill.pass_rate)} · KV{' '}
+                      {formatSkillLevelLabel(skill.level)} · 通过率 {formatRate(skill.pass_rate)} · KV{' '}
                       {formatKvDelta(skill.kv_delta)} · UDR {formatUdr(skill.udr)}
                     </Text>
                     <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
@@ -491,7 +462,7 @@ const SegmentFocusDetails = ({ focus }: { focus: WorkoutSegmentFocus }) => {
                 {direction.name}
               </Text>
               <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
-                {formatStageLabel(direction.stage)} · {direction.count} 张 ·{' '}
+                {formatDirectionStageLabel(direction.stage)} · {direction.count} 张 ·{' '}
                 {Math.round(direction.share * 100)}%
               </Text>
               {direction.signals.length ? (
@@ -531,7 +502,7 @@ const SegmentFocusDetails = ({ focus }: { focus: WorkoutSegmentFocus }) => {
                 {skill.name}
               </Text>
               <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
-                {formatSkillLevel(skill.level)} · {skill.count} 张 ·{' '}
+                {formatSkillLevelLabel(skill.level)} · {skill.count} 张 ·{' '}
                 {Math.round(skill.share * 100)}%
               </Text>
               {skill.signals.length ? (

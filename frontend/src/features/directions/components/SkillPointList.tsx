@@ -10,8 +10,9 @@ import {
 import { Text } from '@/ui/components/Text';
 import { useTheme, useToast } from '@/providers';
 import type { SkillLevel } from '@api';
+import { formatSkillLevelLabel } from '@/lib/formatters';
 
-const LEVELS: SkillLevel[] = ['unknown', 'emerging', 'working', 'fluent'];
+const LEVEL_OPTIONS: SkillLevel[] = ['unknown', 'emerging', 'working', 'fluent'];
 
 type Props = {
   directionId?: string;
@@ -151,7 +152,7 @@ export const SkillPointList = ({ directionId }: Props) => {
                 placeholderTextColor={theme.colors.textMuted}
               />
               <View style={styles.chipRow}>
-                {LEVELS.map((level) => (
+                {LEVEL_OPTIONS.map((level) => (
                   <Pressable
                     key={level}
                     onPress={() => setEditLevel(level)}
@@ -167,7 +168,7 @@ export const SkillPointList = ({ directionId }: Props) => {
                       variant="caption"
                       style={{ color: editLevel === level ? theme.colors.background : theme.colors.textSecondary }}
                     >
-                      {level}
+                      {formatSkillLevelLabel(level)}
                     </Text>
                   </Pressable>
                 ))}
@@ -216,7 +217,7 @@ export const SkillPointList = ({ directionId }: Props) => {
           >
             <Text variant="subtitle">{item.name}</Text>
             {item.summary ? <Text variant="caption">{item.summary}</Text> : null}
-            <Text variant="caption">Level: {item.level}</Text>
+            <Text variant="caption">掌握度：{formatSkillLevelLabel(item.level)}</Text>
             <Pressable
               style={[styles.actionButton, { backgroundColor: theme.colors.surfaceAlt }]}
               onPress={() => handleStartEdit(item.id, item.name, item.summary, item.level)}
