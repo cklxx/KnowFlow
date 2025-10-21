@@ -1,22 +1,13 @@
 import type {
-  NotificationPreferences,
-  SettingsCardApplicationExport,
   SettingsCardExport,
   SettingsCardTagExport,
+  SettingsEvidenceExport,
   SettingsExport,
   SettingsSkillPointExport,
   SettingsSummary,
-  SettingsWorkoutExport,
-  SettingsWorkoutItemExport,
 } from '@api';
 
-import {
-  listAllCards,
-  listAllEvidenceRecords,
-  listAllSkillPoints,
-  listDirections,
-} from './directions';
-import { mockTodayWorkout, mockWorkoutSummary } from './todayWorkout';
+import { listAllCards, listAllEvidenceRecords, listAllSkillPoints, listDirections } from './directions';
 
 const buildDirectionExports = () =>
   listDirections().map((direction) => ({
@@ -47,16 +38,11 @@ const buildCardExports = (): SettingsCardExport[] =>
     title: card.title,
     body: card.body,
     card_type: card.card_type,
-    stability: card.stability ?? 0.3,
-    relevance: card.relevance ?? 0.6,
-    novelty: card.novelty ?? 0.3,
-    priority: card.priority ?? 0.5,
-    next_due: card.next_due ?? null,
     created_at: card.created_at,
     updated_at: card.updated_at,
   }));
 
-const buildEvidenceExports = () =>
+const buildEvidenceExports = (): SettingsEvidenceExport[] =>
   listAllEvidenceRecords().map((evidence) => ({
     id: evidence.id,
     card_id: evidence.card_id,
@@ -73,49 +59,16 @@ const buildCardTags = (cards: SettingsCardExport[]): SettingsCardTagExport[] =>
       { card_id: card.id, tag: `direction:${card.direction_id}` },
       { card_id: card.id, tag: `type:${card.card_type}` },
     ];
-    if (card.priority >= 0.75) {
-      tags.push({ card_id: card.id, tag: 'priority:high' });
+    if (card.skill_point_id) {
+      tags.push({ card_id: card.id, tag: `skill_point:${card.skill_point_id}` });
     }
     return tags;
   });
-
-const buildWorkoutExport = (): SettingsWorkoutExport => ({
-  id: mockTodayWorkout.workout_id,
-  scheduled_for: mockTodayWorkout.scheduled_for,
-  completed_at: mockWorkoutSummary.completed_at,
-  status: 'completed',
-  payload: JSON.stringify(mockTodayWorkout),
-  created_at: mockTodayWorkout.generated_at,
-  updated_at: mockWorkoutSummary.completed_at,
-});
-
-const buildWorkoutItems = (): SettingsWorkoutItemExport[] =>
-  mockTodayWorkout.segments.flatMap((segment) =>
-    segment.items.map((item) => ({
-      id: `workout-item-${item.item_id}`,
-      workout_id: mockTodayWorkout.workout_id,
-      card_id: item.card.id,
-      sequence: item.sequence,
-      phase: segment.phase,
-      result: segment.phase === 'quiz' ? 'pass' : null,
-      due_at: item.card.next_due,
-      created_at: mockTodayWorkout.generated_at,
-    })),
-  );
-
-const buildApplications = (cards: SettingsCardExport[]): SettingsCardApplicationExport[] =>
-  cards.slice(0, 3).map((card, index) => ({
-    id: `app-export-${index + 1}`,
-    card_id: card.id,
-    context: `在真实项目中使用卡片「${card.title}」支撑一次决策。`,
-    noted_at: new Date(Date.now() - index * 24 * 60 * 60 * 1000).toISOString(),
-  }));
 
 export const buildSettingsSummary = (): SettingsSummary => {
   const directions = listDirections();
   const skillPoints = listAllSkillPoints();
   const cards = listAllCards();
-  const evidence = listAllEvidenceRecords();
 
   return {
     data_path: '/Users/demo/KnowFlow/knowflow.sqlite3',
@@ -123,9 +76,6 @@ export const buildSettingsSummary = (): SettingsSummary => {
     direction_count: directions.length,
     skill_point_count: skillPoints.length,
     card_count: cards.length,
-    evidence_count: evidence.length,
-    workout_count: 18,
-    last_workout_completed_at: mockWorkoutSummary.completed_at,
   };
 };
 
@@ -141,44 +91,5 @@ export const buildSettingsExport = (): SettingsExport => {
     cards,
     evidence,
     card_tags: buildCardTags(cards),
-    workouts: [buildWorkoutExport()],
-    workout_items: buildWorkoutItems(),
-    applications: buildApplications(cards),
-  };
-};
-
-const defaultNotificationPreferences: NotificationPreferences = {
-  daily_reminder_enabled: true,
-  daily_reminder_time: '21:00',
-  daily_reminder_target: 'today',
-  due_reminder_enabled: true,
-  due_reminder_time: '20:30',
-  due_reminder_target: 'review',
-  remind_before_due_minutes: 45,
-  updated_at: new Date().toISOString(),
-};
-
-let notificationPreferencesState: NotificationPreferences = {
-  ...defaultNotificationPreferences,
-};
-
-export const getNotificationPreferences = (): NotificationPreferences => ({
-  ...notificationPreferencesState,
-});
-
-export const setNotificationPreferences = (
-  payload: Omit<NotificationPreferences, 'updated_at'>,
-): NotificationPreferences => {
-  notificationPreferencesState = {
-    ...payload,
-    updated_at: new Date().toISOString(),
-  };
-  return getNotificationPreferences();
-};
-
-export const resetNotificationPreferences = () => {
-  notificationPreferencesState = {
-    ...defaultNotificationPreferences,
-    updated_at: new Date().toISOString(),
   };
 };

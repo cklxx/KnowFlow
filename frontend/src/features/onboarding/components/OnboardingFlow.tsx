@@ -345,11 +345,6 @@ export const OnboardingFlow = () => {
               title: draft.draft.title,
               body: draft.draft.body,
               card_type: draft.draft.card_type,
-              stability: draft.draft.stability,
-              relevance: draft.draft.relevance,
-              novelty: draft.draft.novelty,
-              priority: draft.draft.priority,
-              next_due: draft.draft.next_due,
               skill_point_name: defaultSkill && hasContent(defaultSkill.name) ? defaultSkill.name.trim() : null,
             })),
           };

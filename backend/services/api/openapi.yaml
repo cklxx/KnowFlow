@@ -181,6 +181,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: skill_point_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter results to cards linked to the specified skill point.
       responses:
         '200':
           description: Memory cards fetched
@@ -1490,11 +1497,15 @@ components:
     TreeSnapshotResponse:
       type: object
       properties:
+        generated_at:
+          type: string
+          format: date-time
         directions:
           type: array
           items:
             $ref: '#/components/schemas/TreeDirectionBranch'
       required:
+        - generated_at
         - directions
     TreeDirectionBranch:
       type: object
@@ -1523,27 +1534,15 @@ components:
           type: integer
         card_count:
           type: integer
-        fluent_points:
-          type: integer
-        average_stability:
-          type: number
-          format: float
-        upcoming_reviews:
-          type: integer
       required:
         - skill_point_count
         - card_count
-        - fluent_points
-        - average_stability
-        - upcoming_reviews
     TreeSkillPointBranch:
       type: object
       properties:
         skill_point:
           $ref: '#/components/schemas/SkillPoint'
         card_count:
-          type: integer
-        level_score:
           type: integer
         cards:
           type: array
@@ -1552,7 +1551,6 @@ components:
       required:
         - skill_point
         - card_count
-        - level_score
         - cards
     TreeCardSummary:
       type: object
@@ -1570,41 +1568,11 @@ components:
           type: string
         card_type:
           $ref: '#/components/schemas/CardType'
-        stability:
-          type: number
-          format: float
-        relevance:
-          type: number
-          format: float
-        novelty:
-          type: number
-          format: float
-        priority:
-          type: number
-          format: float
-        next_due:
-          type: string
-          format: date-time
-          nullable: true
-        evidence_count:
-          type: integer
-        application_count:
-          type: integer
-        last_applied_at:
-          type: string
-          format: date-time
-          nullable: true
       required:
         - id
         - title
         - body
         - card_type
-        - stability
-        - relevance
-        - novelty
-        - priority
-        - evidence_count
-        - application_count
     MemoryCardDraft:
       type: object
       properties:
@@ -1857,26 +1825,6 @@ components:
           $ref: '#/components/schemas/CardType'
         skill_point_name:
           type: string
-          nullable: true
-        stability:
-          type: number
-          format: float
-          nullable: true
-        relevance:
-          type: number
-          format: float
-          nullable: true
-        novelty:
-          type: number
-          format: float
-          nullable: true
-        priority:
-          type: number
-          format: float
-          nullable: true
-        next_due:
-          type: string
-          format: date-time
           nullable: true
       required:
         - title
@@ -2288,23 +2236,12 @@ components:
           type: integer
         card_count:
           type: integer
-        evidence_count:
-          type: integer
-        workout_count:
-          type: integer
-        last_workout_completed_at:
-          type: string
-          format: date-time
-          nullable: true
       required:
         - data_path
         - database_size_bytes
         - direction_count
         - skill_point_count
         - card_count
-        - evidence_count
-        - workout_count
-        - last_workout_completed_at
     SettingsExportResponse:
       type: object
       properties:
@@ -2328,27 +2265,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SettingsCardTagExport'
-        workouts:
-          type: array
-          items:
-            $ref: '#/components/schemas/SettingsWorkoutExport'
-        workout_items:
-          type: array
-          items:
-            $ref: '#/components/schemas/SettingsWorkoutItemExport'
-        applications:
-          type: array
-          items:
-            $ref: '#/components/schemas/SettingsCardApplicationExport'
       required:
         - directions
         - skill_points
         - cards
         - evidence
         - card_tags
-        - workouts
-        - workout_items
-        - applications
     SettingsDirectionExport:
       type: object
       properties:
@@ -2422,22 +2344,6 @@ components:
           type: string
         card_type:
           $ref: '#/components/schemas/CardType'
-        stability:
-          type: number
-          format: float
-        relevance:
-          type: number
-          format: float
-        novelty:
-          type: number
-          format: float
-        priority:
-          type: number
-          format: float
-        next_due:
-          type: string
-          format: date-time
-          nullable: true
         created_at:
           type: string
           format: date-time
@@ -2450,10 +2356,6 @@ components:
         - title
         - body
         - card_type
-        - stability
-        - relevance
-        - novelty
-        - priority
         - created_at
         - updated_at
     SettingsEvidenceExport:
@@ -2495,88 +2397,6 @@ components:
       required:
         - card_id
         - tag
-    SettingsWorkoutExport:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        scheduled_for:
-          type: string
-          format: date-time
-        completed_at:
-          type: string
-          format: date-time
-          nullable: true
-        status:
-          type: string
-        payload:
-          type: string
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-      required:
-        - id
-        - scheduled_for
-        - status
-        - payload
-        - created_at
-        - updated_at
-    SettingsWorkoutItemExport:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        workout_id:
-          type: string
-          format: uuid
-        card_id:
-          type: string
-          format: uuid
-        sequence:
-          type: integer
-        phase:
-          type: string
-        result:
-          type: string
-          nullable: true
-        due_at:
-          type: string
-          format: date-time
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-      required:
-        - id
-        - workout_id
-        - card_id
-        - sequence
-        - phase
-        - created_at
-    SettingsCardApplicationExport:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        card_id:
-          type: string
-          format: uuid
-        context:
-          type: string
-        noted_at:
-          type: string
-          format: date-time
-      required:
-        - id
-        - card_id
-        - context
-        - noted_at
     CardType:
       type: string
       enum: [fact, concept, procedure, claim]

@@ -16,12 +16,7 @@ import { mockProgressSnapshot } from './fixtures/progress';
 import { mockSearchResponse, mockSearchSuggestions } from './fixtures/search';
 import { buildImportPreview } from './fixtures/import';
 import { generateMockCardDrafts } from './fixtures/intelligence';
-import {
-  buildSettingsExport,
-  buildSettingsSummary,
-  getNotificationPreferences,
-  setNotificationPreferences,
-} from './fixtures/settings';
+import { buildSettingsExport, buildSettingsSummary } from './fixtures/settings';
 import {
   buildTreeSnapshot,
   bootstrapOnboardingData,
@@ -110,18 +105,27 @@ export const handlers = [
     const removed = deleteSkillPointRecord(skillPointId);
     return removed ? new HttpResponse(null, { status: 204 }) : new HttpResponse('Skill point not found', { status: 404 });
   }),
-  http.get(`${API_BASE}/api/directions/:directionId/cards`, ({ params }) => {
+  http.get(`${API_BASE}/api/directions/:directionId/cards`, ({ params, request }) => {
     const { directionId } = params as { directionId: string };
-    return HttpResponse.json(listCardsForDirection(directionId));
+    const url = new URL(request.url);
+    const skillPointId = url.searchParams.get('skill_point_id');
+    return HttpResponse.json(
+      listCardsForDirection(directionId, skillPointId && skillPointId.length ? skillPointId : undefined),
+    );
   }),
   http.post(`${API_BASE}/api/directions/:directionId/cards`, async ({ params, request }) => {
     const { directionId } = params as { directionId: string };
     const payload = (await request.json()) as CreateMemoryCardPayload;
-    const created = createMemoryCardRecord(directionId, payload);
-    if (!created) {
-      return new HttpResponse('Direction not found', { status: 404 });
+    try {
+      const created = createMemoryCardRecord(directionId, payload);
+      if (!created) {
+        return new HttpResponse('Direction not found', { status: 404 });
+      }
+      return HttpResponse.json(created, { status: 201 });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Invalid memory card payload';
+      return new HttpResponse(message, { status: 422 });
     }
-    return HttpResponse.json(created, { status: 201 });
   }),
   http.get(`${API_BASE}/api/cards/:cardId`, ({ params }) => {
     const { cardId } = params as { cardId: string };
@@ -134,11 +138,16 @@ export const handlers = [
   http.patch(`${API_BASE}/api/cards/:cardId`, async ({ params, request }) => {
     const { cardId } = params as { cardId: string };
     const payload = (await request.json()) as UpdateMemoryCardPayload;
-    const updated = updateMemoryCardRecord(cardId, payload);
-    if (!updated) {
-      return new HttpResponse('Card not found', { status: 404 });
+    try {
+      const updated = updateMemoryCardRecord(cardId, payload);
+      if (!updated) {
+        return new HttpResponse('Card not found', { status: 404 });
+      }
+      return HttpResponse.json(updated);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Invalid memory card payload';
+      return new HttpResponse(message, { status: 422 });
     }
-    return HttpResponse.json(updated);
   }),
   http.delete(`${API_BASE}/api/cards/:cardId`, ({ params }) => {
     const { cardId } = params as { cardId: string };
@@ -188,13 +197,6 @@ export const handlers = [
   http.get(`${API_BASE}/api/progress`, () => HttpResponse.json(mockProgressSnapshot)),
   http.get(`${API_BASE}/api/settings/summary`, () => HttpResponse.json(buildSettingsSummary())),
   http.get(`${API_BASE}/api/settings/export`, () => HttpResponse.json(buildSettingsExport())),
-  http.get(`${API_BASE}/api/settings/notifications`, () =>
-    HttpResponse.json(getNotificationPreferences()),
-  ),
-  http.put(`${API_BASE}/api/settings/notifications`, async ({ request }) => {
-    const payload = await request.json();
-    return HttpResponse.json(setNotificationPreferences(payload));
-  }),
   http.get(`${API_BASE}/api/search`, searchHandler),
   http.get(`${API_BASE}/api/search/suggestions`, () => HttpResponse.json(mockSearchSuggestions)),
   http.get(`${API_BASE}/api/tree`, () => HttpResponse.json(buildTreeSnapshot())),

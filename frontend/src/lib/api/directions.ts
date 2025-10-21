@@ -52,8 +52,15 @@ export const deleteSkillPoint = (id: string) =>
     method: 'DELETE',
   });
 
-export const fetchMemoryCards = (directionId: string) =>
-  apiFetch<MemoryCard[]>(`${DIRECTIONS_PATH}/${directionId}/cards`);
+export const fetchMemoryCards = (
+  directionId: string,
+  options?: { skillPointId?: string | null },
+) => {
+  const skillPointId = options?.skillPointId ?? undefined;
+  return apiFetch<MemoryCard[]>(`${DIRECTIONS_PATH}/${directionId}/cards`, {
+    params: skillPointId ? { skill_point_id: skillPointId } : undefined,
+  });
+};
 
 export const createMemoryCard = (directionId: string, payload: CreateMemoryCardPayload) =>
   apiFetch<MemoryCard>(`${DIRECTIONS_PATH}/${directionId}/cards`, {

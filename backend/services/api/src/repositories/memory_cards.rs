@@ -39,13 +39,23 @@ impl<'a> MemoryCardRepository<'a> {
         Self { pool }
     }
 
-    pub async fn list_by_direction(&self, direction_id: Uuid) -> AppResult<Vec<MemoryCard>> {
-        let rows = sqlx::query(
-            "SELECT * FROM memory_cards WHERE direction_id = ? ORDER BY created_at DESC",
-        )
-        .bind(direction_id.to_string())
-        .fetch_all(self.pool)
-        .await?;
+    pub async fn list_by_direction(
+        &self,
+        direction_id: Uuid,
+        skill_point_id: Option<Uuid>,
+    ) -> AppResult<Vec<MemoryCard>> {
+        let mut builder =
+            QueryBuilder::<Sqlite>::new("SELECT * FROM memory_cards WHERE direction_id = ");
+        builder.push_bind(direction_id.to_string());
+
+        if let Some(skill_id) = skill_point_id {
+            builder.push(" AND skill_point_id = ");
+            builder.push_bind(skill_id.to_string());
+        }
+
+        builder.push(" ORDER BY created_at DESC");
+
+        let rows = builder.build().fetch_all(self.pool).await?;
 
         rows.into_iter()
             .map(MemoryCardRow::try_from_row)

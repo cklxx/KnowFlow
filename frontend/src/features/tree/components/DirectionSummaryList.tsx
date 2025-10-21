@@ -27,7 +27,13 @@ export const DirectionSummaryList = ({ directions, selectedId, onSelect }: Props
       {directions.map((branch) => {
         const isSelected = branch.direction.id === selectedId;
         return (
-          <Pressable key={branch.direction.id} onPress={() => onSelect(branch.direction.id)}>
+          <Pressable
+            key={branch.direction.id}
+            onPress={() => onSelect(branch.direction.id)}
+            accessibilityRole="button"
+            accessibilityLabel={`选择方向：${branch.direction.name}`}
+            testID={`direction-summary-${branch.direction.id}`}
+          >
             <Card
               variant="outline"
               style={[
@@ -68,7 +74,6 @@ export const DirectionSummaryList = ({ directions, selectedId, onSelect }: Props
               <View style={styles.metricsRow}>
                 <MetricPill label="技能点" value={branch.metrics.skill_point_count} />
                 <MetricPill label="卡片" value={branch.metrics.card_count} />
-                <MetricPill label="稳定度" value={`${Math.round(branch.metrics.average_stability * 100)}%`} />
               </View>
             </Card>
           </Pressable>

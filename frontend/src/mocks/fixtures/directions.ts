@@ -29,6 +29,15 @@ const levelScore: Record<SkillPoint['level'], number> = {
   fluent: 3,
 };
 
+const stageRank: Record<Direction['stage'], number> = {
+  explore: 0,
+  shape: 1,
+  attack: 2,
+  stabilize: 3,
+};
+
+let treeGeneratedAtOverride: string | null = null;
+
 type CardStoreEntry = MemoryCard & {
   evidence_count: number;
   application_count: number;
@@ -353,13 +362,9 @@ const store = {
 
 const createId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 
-const toMemoryCard = (card: CardStoreEntry): MemoryCard => {
-  const { evidence_count, application_count, last_applied_at, ...rest } = card;
-  return { ...rest };
-};
-
-const toTreeCardSummary = (card: CardStoreEntry): TreeCardSummary => ({
+const toMemoryCard = (card: CardStoreEntry): MemoryCard => ({
   id: card.id,
+  direction_id: card.direction_id,
   skill_point_id: card.skill_point_id,
   title: card.title,
   body: card.body,
@@ -369,9 +374,16 @@ const toTreeCardSummary = (card: CardStoreEntry): TreeCardSummary => ({
   novelty: card.novelty,
   priority: card.priority,
   next_due: card.next_due,
-  evidence_count: card.evidence_count,
-  application_count: card.application_count,
-  last_applied_at: card.last_applied_at,
+  created_at: card.created_at,
+  updated_at: card.updated_at,
+});
+
+const toTreeCardSummary = (card: CardStoreEntry): TreeCardSummary => ({
+  id: card.id,
+  skill_point_id: card.skill_point_id,
+  title: card.title,
+  body: card.body,
+  card_type: card.card_type,
 });
 
 const cardsForDirection = (directionId: string) =>
@@ -391,53 +403,56 @@ const skillPointsForDirection = (directionId: string) =>
     .filter((skillPoint) => skillPoint.direction_id === directionId)
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 
-const computeAverageStability = (cards: CardStoreEntry[]) => {
-  if (!cards.length) return 0;
-  const total = cards.reduce((sum, card) => sum + card.stability, 0);
-  return total / cards.length;
-};
-
-const computeUpcomingReviews = (cards: CardStoreEntry[]) => {
-  const now = Date.now();
-  const window = 7 * DAY_MS;
-  return cards.filter((card) => {
-    if (!card.next_due) return false;
-    const due = new Date(card.next_due).getTime();
-    return due >= now && due - now <= window;
-  }).length;
-};
-
 const buildDirectionBranch = (direction: Direction): TreeDirectionBranch => {
   const directionCards = cardsForDirection(direction.id);
   const directionSkillPoints = skillPointsForDirection(direction.id);
+  const directionSkillIds = new Set(directionSkillPoints.map((skillPoint) => skillPoint.id));
+  const sortCardsByTitle = (a: CardStoreEntry, b: CardStoreEntry) =>
+    a.title.localeCompare(b.title, 'zh-CN');
+  const toSummary = (card: CardStoreEntry) => {
+    const summary = toTreeCardSummary(card);
+    if (summary.skill_point_id && !directionSkillIds.has(summary.skill_point_id)) {
+      return { ...summary, skill_point_id: null };
+    }
+    return summary;
+  };
 
-  const skillBranches = directionSkillPoints
-    .map((skillPoint) => {
-      const cards = directionCards.filter((card) => card.skill_point_id === skillPoint.id);
-      const orderedCards = cards
-        .slice()
-        .sort((a, b) => b.priority - a.priority || b.updated_at.localeCompare(a.updated_at));
-      return {
+  const skillBranchesWithScore = directionSkillPoints.map((skillPoint) => {
+    const cards = directionCards.filter((card) => card.skill_point_id === skillPoint.id);
+    const orderedCards = cards.slice().sort(sortCardsByTitle);
+    return {
+      levelScore: levelScore[skillPoint.level] ?? 0,
+      branch: {
         skill_point: cloneSkillPoint(skillPoint),
         card_count: cards.length,
-        level_score: levelScore[skillPoint.level] ?? 0,
-        cards: orderedCards.map(toTreeCardSummary),
-      };
-    })
-    .sort((a, b) => b.level_score - a.level_score || b.card_count - a.card_count || a.skill_point.name.localeCompare(b.skill_point.name, 'zh-CN'));
+        cards: orderedCards.map(toSummary),
+      },
+    };
+  });
+
+  skillBranchesWithScore.sort((a, b) => {
+    if (b.levelScore !== a.levelScore) {
+      return b.levelScore - a.levelScore;
+    }
+    if (b.branch.card_count !== a.branch.card_count) {
+      return b.branch.card_count - a.branch.card_count;
+    }
+    return a.branch.skill_point.name.localeCompare(b.branch.skill_point.name, 'zh-CN');
+  });
+
+  const skillBranches = skillBranchesWithScore.map(({ branch }) => branch);
 
   const orphanCards = directionCards
-    .filter((card) => card.skill_point_id === null)
-    .map(toTreeCardSummary);
+    .filter((card) => !card.skill_point_id || !directionSkillIds.has(card.skill_point_id))
+    .slice()
+    .sort(sortCardsByTitle)
+    .map(toSummary);
 
   return {
     direction: cloneDirection(direction),
     metrics: {
       skill_point_count: directionSkillPoints.length,
       card_count: directionCards.length,
-      fluent_points: directionSkillPoints.filter((skillPoint) => skillPoint.level === 'fluent').length,
-      average_stability: computeAverageStability(directionCards),
-      upcoming_reviews: computeUpcomingReviews(directionCards),
     },
     skill_points: skillBranches,
     orphan_cards: orphanCards,
@@ -553,8 +568,16 @@ export const deleteSkillPointRecord = (id: string): boolean => {
   return true;
 };
 
-export const listCardsForDirection = (directionId: string) =>
-  cardsForDirection(directionId).map(toMemoryCard);
+export const listCardsForDirection = (
+  directionId: string,
+  skillPointId?: string | null,
+) => {
+  let cards = cardsForDirection(directionId);
+  if (skillPointId) {
+    cards = cards.filter((card) => card.skill_point_id === skillPointId);
+  }
+  return cards.map(toMemoryCard);
+};
 
 export const getMemoryCardRecord = (id: string): MemoryCard | null => {
   const card = findCardById(id);
@@ -617,11 +640,23 @@ export const createMemoryCardRecord = (
     return null;
   }
   const timestamp = new Date().toISOString();
-  const fallbackSkillPoint = store.skillPoints.find((skillPoint) => skillPoint.direction_id === directionId);
+  let resolvedSkillPointId: string | null = null;
+
+  if (payload.skill_point_id !== undefined && payload.skill_point_id !== null) {
+    const skillPoint = store.skillPoints.find((item) => item.id === payload.skill_point_id);
+    if (!skillPoint) {
+      throw new Error('Skill point not found');
+    }
+    if (skillPoint.direction_id !== directionId) {
+      throw new Error('Skill point must belong to the direction');
+    }
+    resolvedSkillPointId = skillPoint.id;
+  }
+
   const card: CardStoreEntry = {
     id: createId('card'),
     direction_id: directionId,
-    skill_point_id: payload.skill_point_id ?? fallbackSkillPoint?.id ?? null,
+    skill_point_id: resolvedSkillPointId,
     title: payload.title,
     body: payload.body,
     card_type: payload.card_type,
@@ -656,7 +691,18 @@ export const updateMemoryCardRecord = (
     card.card_type = payload.card_type;
   }
   if (payload.skill_point_id !== undefined) {
-    card.skill_point_id = payload.skill_point_id ?? null;
+    if (payload.skill_point_id === null) {
+      card.skill_point_id = null;
+    } else {
+      const skillPoint = store.skillPoints.find((item) => item.id === payload.skill_point_id);
+      if (!skillPoint) {
+        throw new Error('Skill point not found');
+      }
+      if (skillPoint.direction_id !== card.direction_id) {
+        throw new Error('Skill point must belong to the direction');
+      }
+      card.skill_point_id = skillPoint.id;
+    }
   }
   if (payload.stability !== undefined) {
     card.stability = payload.stability;
@@ -689,15 +735,36 @@ export const deleteMemoryCardRecord = (id: string): boolean => {
   return true;
 };
 
-export const buildTreeSnapshot = (): TreeSnapshot => ({
-  directions: store.directions.map(buildDirectionBranch),
-});
+export const setTreeGeneratedAtOverride = (value: string | null) => {
+  treeGeneratedAtOverride = value;
+};
+
+export const buildTreeSnapshot = (): TreeSnapshot => {
+  const branches = store.directions.map(buildDirectionBranch);
+  branches.sort((a, b) => {
+    const stageDelta = (stageRank[a.direction.stage] ?? 0) - (stageRank[b.direction.stage] ?? 0);
+    if (stageDelta !== 0) {
+      return stageDelta;
+    }
+    const updatedCompare = b.direction.updated_at.localeCompare(a.direction.updated_at);
+    if (updatedCompare !== 0) {
+      return updatedCompare;
+    }
+    return a.direction.name.localeCompare(b.direction.name, 'zh-CN');
+  });
+
+  return {
+    generated_at: treeGeneratedAtOverride ?? new Date().toISOString(),
+    directions: branches,
+  };
+};
 
 export const resetMockDirectionData = () => {
   replaceArray(store.directions, baseDirections.map(cloneDirection));
   replaceArray(store.skillPoints, baseSkillPoints.map(cloneSkillPoint));
   replaceArray(store.cards, baseCards.map(cloneCard));
   replaceArray(store.evidence, baseEvidence.map(cloneEvidence));
+  treeGeneratedAtOverride = null;
 };
 
 export const listAllSkillPoints = () => store.skillPoints.map(cloneSkillPoint);
@@ -760,11 +827,11 @@ export const bootstrapOnboardingData = (
         title: cardSeed.title,
         body: cardSeed.body,
         card_type: cardSeed.card_type,
-        stability: cardSeed.stability ?? 0.28 + index * 0.04,
-        relevance: cardSeed.relevance ?? 0.72 - index * 0.03,
-        novelty: cardSeed.novelty ?? 0.3 + index * 0.02,
-        priority: cardSeed.priority ?? 0.64 + index * 0.03,
-        next_due: cardSeed.next_due ?? new Date(Date.now() + (index + 2) * DAY_MS).toISOString(),
+        stability: 0.28 + index * 0.04,
+        relevance: 0.72 - index * 0.03,
+        novelty: 0.3 + index * 0.02,
+        priority: 0.64 + index * 0.03,
+        next_due: new Date(Date.now() + (index + 2) * DAY_MS).toISOString(),
         created_at: timestamp,
         updated_at: timestamp,
         evidence_count: 0,

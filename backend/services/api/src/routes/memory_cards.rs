@@ -13,6 +13,7 @@ use uuid::Uuid;
 use crate::domain::{CardType, MemoryCard, MemoryCardDraft, MemoryCardUpdate};
 use crate::error::{AppError, AppResult};
 use crate::repositories::memory_cards::{MemoryCardRepository, MemoryCardSearch};
+use crate::repositories::skill_points::SkillPointRepository;
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
@@ -47,10 +48,12 @@ async fn search_cards(
 async fn list_cards(
     State(state): State<AppState>,
     Path(direction_id): Path<Uuid>,
+    Query(params): Query<MemoryCardListQuery>,
 ) -> AppResult<Json<Vec<MemoryCard>>> {
     let repo = MemoryCardRepository::new(state.pool());
-    // TODO: filter by skill_point_id once repository supports it
-    let cards = repo.list_by_direction(direction_id).await?;
+    let cards = repo
+        .list_by_direction(direction_id, params.skill_point_id)
+        .await?;
     Ok(Json(cards))
 }
 
@@ -59,8 +62,24 @@ async fn create_card(
     Path(direction_id): Path<Uuid>,
     Json(payload): Json<MemoryCardCreateRequest>,
 ) -> AppResult<(StatusCode, Json<MemoryCard>)> {
-    let repo = MemoryCardRepository::new(state.pool());
-    let draft = payload.try_into()?;
+    let pool = state.pool();
+    let repo = MemoryCardRepository::new(pool);
+    let skill_repo = SkillPointRepository::new(pool);
+
+    let draft: MemoryCardDraft = payload.try_into()?;
+
+    if let Some(skill_id) = draft.skill_point_id {
+        match skill_repo.get(skill_id).await? {
+            Some(skill) if skill.direction_id == direction_id => {}
+            Some(_) => {
+                return Err(AppError::Validation(
+                    "skill point must belong to the direction".to_string(),
+                ))
+            }
+            None => return Err(AppError::Validation("skill point not found".to_string())),
+        }
+    }
+
     let card = repo.create(direction_id, draft).await?;
     Ok((StatusCode::CREATED, Json(card)))
 }
@@ -70,8 +89,29 @@ async fn update_card(
     Path(id): Path<Uuid>,
     Json(payload): Json<MemoryCardUpdateRequest>,
 ) -> AppResult<Json<MemoryCard>> {
-    let repo = MemoryCardRepository::new(state.pool());
-    let update = payload.try_into()?;
+    let pool = state.pool();
+    let repo = MemoryCardRepository::new(pool);
+    let skill_repo = SkillPointRepository::new(pool);
+
+    let existing = match repo.get(id).await? {
+        Some(card) => card,
+        None => return Err(AppError::NotFound),
+    };
+
+    let update: MemoryCardUpdate = payload.try_into()?;
+
+    if let Some(Some(skill_id)) = update.skill_point_id {
+        match skill_repo.get(skill_id).await? {
+            Some(skill) if skill.direction_id == existing.direction_id => {}
+            Some(_) => {
+                return Err(AppError::Validation(
+                    "skill point must belong to the card direction".to_string(),
+                ))
+            }
+            None => return Err(AppError::Validation("skill point not found".to_string())),
+        }
+    }
+
     match repo.update(id, update).await? {
         Some(card) => Ok(Json(card)),
         None => Err(AppError::NotFound),
@@ -172,6 +212,12 @@ struct MemoryCardSearchQuery {
     due_before: Option<DateTime<Utc>>,
     #[serde(default)]
     limit: Option<usize>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct MemoryCardListQuery {
+    #[serde(default)]
+    skill_point_id: Option<Uuid>,
 }
 
 impl TryFrom<MemoryCardUpdateRequest> for MemoryCardUpdate {

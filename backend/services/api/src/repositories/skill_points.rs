@@ -44,6 +44,20 @@ impl<'a> SkillPointRepository<'a> {
             .collect()
     }
 
+    pub async fn get(&self, id: Uuid) -> AppResult<Option<SkillPoint>> {
+        let row = sqlx::query(
+            "SELECT id, direction_id, name, summary, level, created_at, updated_at FROM skill_points WHERE id = ?",
+        )
+        .bind(id.to_string())
+        .fetch_optional(self.pool)
+        .await?;
+
+        match row {
+            Some(record) => Ok(Some(SkillPointRow::try_from_row(record)?.into_domain()?)),
+            None => Ok(None),
+        }
+    }
+
     pub async fn create(
         &self,
         direction_id: Uuid,

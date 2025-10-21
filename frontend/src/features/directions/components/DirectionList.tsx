@@ -39,7 +39,7 @@ export const DirectionList = ({ onSelect, selectedId }: Props) => {
   const handleCreate = async () => {
     if (!name.trim()) return;
     try {
-      await createDirection({
+      const created = await createDirection({
         name: name.trim(),
         stage,
         quarterly_goal: quarterlyGoal.trim() ? quarterlyGoal.trim() : null,
@@ -47,6 +47,7 @@ export const DirectionList = ({ onSelect, selectedId }: Props) => {
       showToast({ message: 'Direction created', variant: 'success' });
       setName('');
       setQuarterlyGoal('');
+      onSelect(created.id);
     } catch (error) {
       showToast({
         message: error instanceof Error ? error.message : 'Failed to create direction',
