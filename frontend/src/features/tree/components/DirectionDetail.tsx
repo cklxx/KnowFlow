@@ -38,9 +38,7 @@ export const DirectionDetail = ({ branch }: Props) => {
         </View>
         <View style={styles.metricsRow}>
           <MetricBadge label="技能点" value={branch.metrics.skill_point_count} />
-          <MetricBadge label="已熟练" value={branch.metrics.fluent_points} />
-          <MetricBadge label="稳定度" value={`${Math.round(branch.metrics.average_stability * 100)}%`} />
-          <MetricBadge label="即将复习" value={branch.metrics.upcoming_reviews} />
+          <MetricBadge label="卡片" value={branch.metrics.card_count} />
         </View>
       </Card>
 
@@ -133,38 +131,8 @@ const CardRow = ({ card }: { card: TreeCardSummary }) => {
       <Text variant="caption" style={{ color: theme.colors.textSecondary }} numberOfLines={2}>
         {card.body}
       </Text>
-      <View style={styles.cardMetaRow}>
-        <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
-          复习 {formatDue(card.next_due)}
-        </Text>
-        <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
-          证据 {card.evidence_count} · 应用 {card.application_count}
-        </Text>
-        {card.last_applied_at ? (
-          <Text variant="caption" style={{ color: theme.colors.textSecondary }}>
-            上次应用 {formatLastApplied(card.last_applied_at)}
-          </Text>
-        ) : null}
-      </View>
     </View>
   );
-};
-
-const formatDue = (value: string | null) => {
-  if (!value) return '未安排';
-  const due = new Date(value);
-  const diffDays = Math.round((due.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return '今天';
-  if (diffDays > 0) return `${diffDays} 天后`;
-  return `${Math.abs(diffDays)} 天前`;
-};
-
-const formatLastApplied = (value: string) => {
-  const applied = new Date(value);
-  const diffDays = Math.round((Date.now() - applied.getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return '今天';
-  if (diffDays === 1) return '昨日';
-  return `${diffDays} 天前`;
 };
 
 const styles = StyleSheet.create({
@@ -243,11 +211,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
-  },
-  cardMetaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
   },
   cardEmpty: {
     borderWidth: 1,

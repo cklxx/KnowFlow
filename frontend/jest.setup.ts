@@ -29,13 +29,7 @@ import {
 import { buildVaultSnapshot } from './src/mocks/fixtures/vault';
 import { buildImportPreview } from './src/mocks/fixtures/import';
 import { generateMockCardDrafts } from './src/mocks/fixtures/intelligence';
-import {
-  buildSettingsExport,
-  buildSettingsSummary,
-  getNotificationPreferences,
-  resetNotificationPreferences,
-  setNotificationPreferences,
-} from './src/mocks/fixtures/settings';
+import { buildSettingsExport, buildSettingsSummary } from './src/mocks/fixtures/settings';
 
 type LocalSearchParams = Record<string, string | string[]>;
 
@@ -68,7 +62,7 @@ jest.mock('react-native-gifted-chat', () => {
   ];
 
   const GiftedChat = Object.assign(
-    ({ children }: { children?: React.ReactNode }) => null,
+    () => null,
     { append },
   );
 
@@ -100,7 +94,6 @@ beforeEach(() => {
   mockRouter.back.mockClear();
   routerState.params = {};
   resetMockDirectionData();
-  resetNotificationPreferences();
   if (!globalWithFetch.fetch) {
     globalWithFetch.fetch = fetch;
   }
@@ -146,14 +139,6 @@ beforeEach(() => {
       return buildResponse(buildSettingsExport());
     }
 
-    if (url.endsWith('/api/settings/notifications')) {
-      if (method === 'PUT') {
-        const payload = JSON.parse((init?.body as string) ?? '{}');
-        return buildResponse(setNotificationPreferences(payload));
-      }
-      return buildResponse(getNotificationPreferences());
-    }
-
     if (pathname === '/api/search/suggestions') {
       return buildResponse(mockSearchSuggestions);
     }
@@ -184,7 +169,7 @@ beforeEach(() => {
 
     const directionMatch = pathname.match(/^\/api\/directions\/([^/]+)$/);
     if (directionMatch) {
-      const [_, directionId] = directionMatch;
+      const [, directionId] = directionMatch;
       if (method === 'PATCH') {
         const payload = JSON.parse((init?.body as string) ?? '{}');
         const updated = updateDirectionRecord(directionId, payload);
@@ -201,7 +186,7 @@ beforeEach(() => {
 
     const skillPointsMatch = pathname.match(/^\/api\/directions\/([^/]+)\/skill-points$/);
     if (skillPointsMatch) {
-      const [_, directionId] = skillPointsMatch;
+      const [, directionId] = skillPointsMatch;
       if (method === 'POST') {
         const payload = JSON.parse((init?.body as string) ?? '{}');
         const created = createSkillPointRecord(directionId, payload);
@@ -215,7 +200,7 @@ beforeEach(() => {
 
     const skillPointMatch = pathname.match(/^\/api\/skill-points\/([^/]+)$/);
     if (skillPointMatch) {
-      const [_, skillPointId] = skillPointMatch;
+      const [, skillPointId] = skillPointMatch;
       if (method === 'PATCH') {
         const payload = JSON.parse((init?.body as string) ?? '{}');
         const updated = updateSkillPointRecord(skillPointId, payload);
@@ -232,7 +217,7 @@ beforeEach(() => {
 
     const directionCardsMatch = pathname.match(/^\/api\/directions\/([^/]+)\/cards$/);
     if (directionCardsMatch) {
-      const [_, directionId] = directionCardsMatch;
+      const [, directionId] = directionCardsMatch;
       if (method === 'POST') {
         const payload = JSON.parse((init?.body as string) ?? '{}');
         const created = createMemoryCardRecord(directionId, payload);
@@ -241,12 +226,14 @@ beforeEach(() => {
         }
         return buildResponse(created, { status: 201 });
       }
-      return buildResponse(listCardsForDirection(directionId));
+      const skillPointParam = urlObject.searchParams.get('skill_point_id');
+      const filter = skillPointParam && skillPointParam.length ? skillPointParam : undefined;
+      return buildResponse(listCardsForDirection(directionId, filter));
     }
 
     const cardMatch = pathname.match(/^\/api\/cards\/([^/]+)$/);
     if (cardMatch) {
-      const [_, cardId] = cardMatch;
+      const [, cardId] = cardMatch;
       if (method === 'GET') {
         const card = getMemoryCardRecord(cardId);
         if (!card) {
@@ -270,7 +257,7 @@ beforeEach(() => {
 
     const cardEvidenceMatch = pathname.match(/^\/api\/cards\/([^/]+)\/evidence$/);
     if (cardEvidenceMatch) {
-      const [_, cardId] = cardEvidenceMatch;
+      const [, cardId] = cardEvidenceMatch;
       if (method === 'GET') {
         const card = getMemoryCardRecord(cardId);
         if (!card) {
@@ -290,7 +277,7 @@ beforeEach(() => {
 
     const evidenceMatch = pathname.match(/^\/api\/evidence\/([^/]+)$/);
     if (evidenceMatch) {
-      const [_, evidenceId] = evidenceMatch;
+      const [, evidenceId] = evidenceMatch;
       if (method === 'DELETE') {
         const removed = deleteEvidenceRecord(evidenceId);
         return removed ? new Response(null, { status: 204 }) : new Response('Not found', { status: 404 });

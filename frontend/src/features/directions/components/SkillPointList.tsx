@@ -20,7 +20,7 @@ type Props = {
 
 export const SkillPointList = ({ directionId }: Props) => {
   const { theme } = useTheme();
-  const { data, isLoading, isError } = useSkillPoints(directionId ?? '');
+  const { data, isLoading, isError } = useSkillPoints(directionId);
   const { mutateAsync: createSkillPoint, isPending: creating } = useCreateSkillPoint(directionId);
   const { mutateAsync: updateSkillPoint, isPending: updating } = useUpdateSkillPoint(directionId);
   const { mutateAsync: deleteSkillPoint, isPending: deleting } = useDeleteSkillPoint(directionId);

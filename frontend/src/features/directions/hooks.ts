@@ -76,15 +76,18 @@ export const useSkillPoints = (directionId: string | undefined) =>
     },
   });
 
-export const useMemoryCards = (directionId: string | undefined) =>
+export const useMemoryCards = (
+  directionId: string | undefined,
+  skillPointId?: string | null,
+) =>
   useQuery<MemoryCard[]>({
-    queryKey: ['memory-cards', directionId],
+    queryKey: ['memory-cards', directionId, skillPointId ?? 'all'],
     enabled: Boolean(directionId),
     queryFn: () => {
       if (!directionId) {
         return Promise.resolve([]);
       }
-      return fetchMemoryCards(directionId);
+      return fetchMemoryCards(directionId, { skillPointId });
     },
   });
 
@@ -155,6 +158,7 @@ export const useDeleteSkillPoint = (directionId: string | undefined) => {
     mutationFn: (id: string) => deleteSkillPoint(id),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['skill-points', directionId] });
+      queryClient.invalidateQueries({ queryKey: TREE_SNAPSHOT_QUERY_KEY });
     },
   });
 };
@@ -166,6 +170,7 @@ export const useDeleteMemoryCard = (directionId: string | undefined) => {
     mutationFn: (id: string) => deleteMemoryCard(id),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['memory-cards', directionId] });
+      queryClient.invalidateQueries({ queryKey: TREE_SNAPSHOT_QUERY_KEY });
     },
   });
 };

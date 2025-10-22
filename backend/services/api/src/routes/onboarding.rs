@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use axum::{extract::State, http::StatusCode, routing::post, Json, Router};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -76,11 +76,11 @@ async fn bootstrap_onboarding(
                 title: card.title,
                 body: card.body,
                 card_type,
-                stability: card.stability,
-                relevance: card.relevance,
-                novelty: card.novelty,
-                priority: card.priority,
-                next_due: card.next_due,
+                stability: None,
+                relevance: None,
+                novelty: None,
+                priority: None,
+                next_due: None,
             };
 
             let record = insert_card(&mut tx, direction_id, draft).await?;
@@ -220,16 +220,6 @@ struct OnboardingCardSeed {
     card_type: String,
     #[serde(default)]
     skill_point_name: Option<String>,
-    #[serde(default)]
-    stability: Option<f64>,
-    #[serde(default)]
-    relevance: Option<f64>,
-    #[serde(default)]
-    novelty: Option<f64>,
-    #[serde(default)]
-    priority: Option<f64>,
-    #[serde(default)]
-    next_due: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Serialize)]

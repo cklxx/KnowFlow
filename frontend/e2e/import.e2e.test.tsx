@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import ImportScreen from '../app/import';
 import { AppProvider } from '@/providers';
@@ -43,7 +43,13 @@ describe('Import screen end-to-end', () => {
     const commitButton = screen.getByRole('button', { name: '写入选中卡片' });
     expect(commitButton).toBeEnabled();
 
-    fireEvent.press(commitButton);
+    await act(async () => {
+      fireEvent.press(screen.getByText('自定义 Waker 校验三步'));
+    });
+
+    await act(async () => {
+      fireEvent.press(commitButton);
+    });
 
     await waitFor(() =>
       expect(screen.getByText('已写入选中的卡片到当前方向。')).toBeTruthy(),

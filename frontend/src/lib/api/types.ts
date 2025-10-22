@@ -231,9 +231,6 @@ export type SettingsSummary = {
   direction_count: number;
   skill_point_count: number;
   card_count: number;
-  evidence_count: number;
-  workout_count: number;
-  last_workout_completed_at: string | null;
 };
 
 export type SettingsDirectionExport = {
@@ -262,11 +259,6 @@ export type SettingsCardExport = {
   title: string;
   body: string;
   card_type: CardType;
-  stability: number;
-  relevance: number;
-  novelty: number;
-  priority: number;
-  next_due: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -286,56 +278,12 @@ export type SettingsCardTagExport = {
   tag: string;
 };
 
-export type SettingsWorkoutExport = {
-  id: string;
-  scheduled_for: string;
-  completed_at: string | null;
-  status: string;
-  payload: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export type SettingsWorkoutItemExport = {
-  id: string;
-  workout_id: string;
-  card_id: string;
-  sequence: number;
-  phase: WorkoutPhase;
-  result: WorkoutResultKind | null;
-  due_at: string | null;
-  created_at: string;
-};
-
-export type SettingsCardApplicationExport = {
-  id: string;
-  card_id: string;
-  context: string;
-  noted_at: string;
-};
-
 export type SettingsExport = {
   directions: SettingsDirectionExport[];
   skill_points: SettingsSkillPointExport[];
   cards: SettingsCardExport[];
   evidence: SettingsEvidenceExport[];
   card_tags: SettingsCardTagExport[];
-  workouts: SettingsWorkoutExport[];
-  workout_items: SettingsWorkoutItemExport[];
-  applications: SettingsCardApplicationExport[];
-};
-
-export type NotificationDeepLinkTarget = 'today' | 'quiz' | 'review';
-
-export type NotificationPreferences = {
-  daily_reminder_enabled: boolean;
-  daily_reminder_time: string;
-  daily_reminder_target: NotificationDeepLinkTarget;
-  due_reminder_enabled: boolean;
-  due_reminder_time: string;
-  due_reminder_target: NotificationDeepLinkTarget;
-  remind_before_due_minutes: number;
-  updated_at: string;
 };
 
 export type OnboardingSkillSeed = {
@@ -349,11 +297,6 @@ export type OnboardingCardSeed = {
   body: string;
   card_type: CardType;
   skill_point_name?: string | null;
-  stability?: number | null;
-  relevance?: number | null;
-  novelty?: number | null;
-  priority?: number | null;
-  next_due?: string | null;
 };
 
 export type OnboardingDirectionSeed = {
@@ -479,29 +422,17 @@ export type TreeCardSummary = {
   title: string;
   body: string;
   card_type: CardType;
-  stability: number;
-  relevance: number;
-  novelty: number;
-  priority: number;
-  next_due: string | null;
-  evidence_count: number;
-  application_count: number;
-  last_applied_at: string | null;
 };
 
 export type TreeSkillPointBranch = {
   skill_point: SkillPoint;
   card_count: number;
-  level_score: number;
   cards: TreeCardSummary[];
 };
 
 export type TreeDirectionMetrics = {
   skill_point_count: number;
   card_count: number;
-  fluent_points: number;
-  average_stability: number;
-  upcoming_reviews: number;
 };
 
 export type TreeDirectionBranch = {
@@ -512,6 +443,7 @@ export type TreeDirectionBranch = {
 };
 
 export type TreeSnapshot = {
+  generated_at: string;
   directions: TreeDirectionBranch[];
 };
 
