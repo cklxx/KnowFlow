@@ -151,7 +151,12 @@ mod tests {
         let app = router().with_state(state);
 
         let response = app
-            .oneshot(Request::builder().uri("/api/sync").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/sync")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .expect("response");
 
@@ -165,8 +170,16 @@ mod tests {
             .to_bytes();
         let payload: SyncResponse = serde_json::from_slice(&bytes).expect("payload");
 
-        assert!(payload.directions.updated.iter().any(|d| d.id == direction_id));
-        assert!(payload.skill_points.updated.iter().any(|s| s.id == skill_id));
+        assert!(payload
+            .directions
+            .updated
+            .iter()
+            .any(|d| d.id == direction_id));
+        assert!(payload
+            .skill_points
+            .updated
+            .iter()
+            .any(|s| s.id == skill_id));
         assert!(payload.memory_cards.updated.iter().any(|c| c.id == card_id));
         assert!(payload.skill_points.deleted.is_empty());
     }
@@ -181,7 +194,12 @@ mod tests {
 
         let response = app
             .clone()
-            .oneshot(Request::builder().uri("/api/sync").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/sync")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .expect("response");
         assert_eq!(response.status(), StatusCode::OK);
@@ -215,7 +233,10 @@ mod tests {
         let skills = SkillPointRepository::new(&pool);
         assert!(skills.delete(skill_id).await.expect("skill deleted"));
 
-        let uri = format!("/api/sync?since={}", cursor.to_rfc3339().replace('+', "%2B"));
+        let uri = format!(
+            "/api/sync?since={}",
+            cursor.to_rfc3339().replace('+', "%2B")
+        );
         let response = app
             .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
             .await

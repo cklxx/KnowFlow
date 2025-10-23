@@ -20,7 +20,7 @@ async fn main() -> anyhow::Result<()> {
     init_tracing();
     dotenv().ok();
 
-    let config = AppConfig::from_env()?;
+    let config = AppConfig::from_env()?.with_llm_autodetect().await?;
     let pool = db::connect(&config.database_url).await?;
     let llm_client = LlmClient::new(config.llm.clone())?;
 
