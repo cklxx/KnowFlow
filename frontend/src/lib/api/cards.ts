@@ -1,5 +1,10 @@
 import { apiFetch } from './client';
-import type { CardType, MemoryCard } from './types';
+import type {
+  CardApplication,
+  CardType,
+  MemoryCard,
+  NewCardApplicationInput,
+} from './types';
 
 export type CardSearchParams = {
   directionId?: string;
@@ -75,3 +80,24 @@ export const deleteCard = (id: string) =>
   apiFetch<void>(`/api/cards/${id}`, {
     method: 'DELETE',
   });
+
+export const listCardApplications = (cardId: string) =>
+  apiFetch<CardApplication[]>(`/api/cards/${cardId}/applications`);
+
+export const createCardApplication = (
+  cardId: string,
+  payload: NewCardApplicationInput,
+) => {
+  const body: Record<string, unknown> = {
+    context: payload.context,
+  };
+
+  if (payload.noted_at) {
+    body.noted_at = payload.noted_at;
+  }
+
+  return apiFetch<CardApplication>(`/api/cards/${cardId}/applications`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+};

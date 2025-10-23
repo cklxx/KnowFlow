@@ -1,6 +1,7 @@
 import 'whatwg-fetch';
 import '@testing-library/jest-native/extend-expect';
 import { act } from '@testing-library/react-native';
+import * as ReactNative from 'react-native';
 
 import { mockTodayWorkout, mockWorkoutSummary } from './src/mocks/fixtures/todayWorkout';
 import { mockProgressSnapshot } from './src/mocks/fixtures/progress';
@@ -11,6 +12,7 @@ import {
   createEvidenceRecord,
   createDirectionRecord,
   createMemoryCardRecord,
+  createCardApplicationRecord,
   createSkillPointRecord,
   deleteDirectionRecord,
   deleteEvidenceRecord,
@@ -18,6 +20,7 @@ import {
   deleteSkillPointRecord,
   getMemoryCardRecord,
   listCardsForDirection,
+  listCardApplications,
   listDirections,
   listSkillPointsForDirection,
   resetMockDirectionData,
@@ -25,11 +28,42 @@ import {
   updateDirectionRecord,
   updateMemoryCardRecord,
   updateSkillPointRecord,
+  buildSyncDelta,
 } from './src/mocks/fixtures/directions';
 import { buildVaultSnapshot } from './src/mocks/fixtures/vault';
 import { buildImportPreview } from './src/mocks/fixtures/import';
 import { generateMockCardDrafts } from './src/mocks/fixtures/intelligence';
-import { buildSettingsExport, buildSettingsSummary } from './src/mocks/fixtures/settings';
+import {
+  buildSettingsExport,
+  buildSettingsSummary,
+  getNotificationPreferences,
+  updateNotificationPreferencesRecord,
+} from './src/mocks/fixtures/settings';
+
+const linkingListeners: Array<(event: { url: string }) => void> = [];
+
+jest.mock('expo-linking', () => ({
+  addEventListener: (_type: 'url', listener: (event: { url: string }) => void) => {
+    linkingListeners.push(listener);
+    return {
+      remove: () => {
+        const index = linkingListeners.indexOf(listener);
+        if (index >= 0) {
+          linkingListeners.splice(index, 1);
+        }
+      },
+    };
+  },
+  getInitialURL: jest.fn(() => Promise.resolve(null)),
+  openURL: jest.fn(),
+  createURL: jest.fn(),
+}));
+
+(globalThis as unknown as { __emitLinkingEvent?: (url: string) => void }).__emitLinkingEvent = (
+  url: string,
+) => {
+  linkingListeners.slice().forEach((listener) => listener({ url }));
+};
 
 type LocalSearchParams = Record<string, string | string[]>;
 
@@ -76,6 +110,29 @@ jest.mock('react-native-gifted-chat', () => {
   };
 });
 
+const appStateListeners: Array<(status: string) => void> = [];
+ReactNative.AppState = {
+  ...(ReactNative.AppState ?? {}),
+  currentState: 'active',
+  addEventListener: (_type: string, listener: (status: string) => void) => {
+    appStateListeners.push(listener);
+    return {
+      remove: () => {
+        const index = appStateListeners.indexOf(listener);
+        if (index >= 0) {
+          appStateListeners.splice(index, 1);
+        }
+      },
+    };
+  },
+};
+
+(globalThis as unknown as { __emitAppState?: (status: string) => void }).__emitAppState = (
+  status: string,
+) => {
+  appStateListeners.slice().forEach((listener) => listener(status));
+};
+
 type GlobalWithFetch = typeof globalThis & { fetch?: typeof fetch };
 
 const globalWithFetch = global as GlobalWithFetch;
@@ -116,6 +173,11 @@ beforeEach(() => {
       return buildResponse(mockProgressSnapshot);
     }
 
+    if (pathname === '/api/sync') {
+      const since = urlObject.searchParams.get('since');
+      return buildResponse(buildSyncDelta(since));
+    }
+
     if (pathname === '/api/import/preview' && method === 'POST') {
       const payload = JSON.parse((init?.body as string) ?? '{}');
       return buildResponse(buildImportPreview(payload));
@@ -137,6 +199,22 @@ beforeEach(() => {
 
     if (url.endsWith('/api/settings/export')) {
       return buildResponse(buildSettingsExport());
+    }
+
+    if (url.endsWith('/api/settings/notifications')) {
+      if (method === 'GET') {
+        return buildResponse(getNotificationPreferences());
+      }
+      if (method === 'PATCH') {
+        const payload = JSON.parse((init?.body as string) ?? '{}');
+        try {
+          const updated = updateNotificationPreferencesRecord(payload);
+          return buildResponse(updated);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Invalid notification payload';
+          return new Response(message, { status: 422 });
+        }
+      }
     }
 
     if (pathname === '/api/search/suggestions') {
@@ -272,6 +350,31 @@ beforeEach(() => {
           return new Response('Not found', { status: 404 });
         }
         return buildResponse(created, { status: 201 });
+      }
+    }
+
+    const cardApplicationsMatch = pathname.match(/^\/api\/cards\/([^/]+)\/applications$/);
+    if (cardApplicationsMatch) {
+      const [, cardId] = cardApplicationsMatch;
+      const card = getMemoryCardRecord(cardId);
+      if (!card) {
+        return new Response('Not found', { status: 404 });
+      }
+      if (method === 'GET') {
+        return buildResponse(listCardApplications(cardId));
+      }
+      if (method === 'POST') {
+        const payload = JSON.parse((init?.body as string) ?? '{}');
+        try {
+          const created = createCardApplicationRecord(cardId, payload);
+          if (!created) {
+            return new Response('Not found', { status: 404 });
+          }
+          return buildResponse(created, { status: 201 });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Invalid application payload';
+          return new Response(message, { status: 422 });
+        }
       }
     }
 

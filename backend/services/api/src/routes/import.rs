@@ -5,6 +5,7 @@ use crate::error::{AppError, AppResult};
 use crate::services::import::{
     build_import_preview, ImportPreview, ImportPreviewOptions, ImportSource, ImportSourceKind,
 };
+use crate::services::llm::{GeneratedCardDraft, MAX_GENERATION_TARGET};
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
@@ -56,7 +57,7 @@ struct ImportPreviewClusterDto {
     topic: String,
     summary: String,
     materials: Vec<ImportPreviewMaterialDto>,
-    drafts: Vec<crate::services::llm::GeneratedCardDraft>,
+    drafts: Vec<GeneratedCardDraft>,
 }
 
 #[derive(Debug, Serialize)]
@@ -73,7 +74,9 @@ async fn preview_import(
     State(state): State<AppState>,
     Json(payload): Json<ImportPreviewRequest>,
 ) -> AppResult<Json<ImportPreviewResponse>> {
-    let desired_cards = payload.desired_cards_per_cluster.clamp(1, 6);
+    let desired_cards = payload
+        .desired_cards_per_cluster
+        .clamp(1, MAX_GENERATION_TARGET);
 
     let sources: Vec<ImportSource> = payload
         .sources

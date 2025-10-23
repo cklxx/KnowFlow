@@ -67,5 +67,21 @@ describe('Card detail screen end-to-end', () => {
     fireEvent.press(deleteButtons[0]);
 
     await waitFor(() => expect(screen.queryByText('测试摘录内容')).toBeNull());
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText('描述这张卡片最近的应用场景'),
+      '在复盘召回率下降时，根据 checklist 快速定位索引延迟。',
+    );
+    fireEvent.changeText(
+      screen.getByPlaceholderText('记录时间（可选，如 2024-09-18T09:30:00Z）'),
+      '2024-10-07T08:30:00Z',
+    );
+    fireEvent.press(screen.getByText('记录应用'));
+
+    await waitFor(() =>
+      expect(alertSpy).toHaveBeenCalledWith('已记录', '应用场景已登记'),
+    );
+
+    await screen.findByText('在复盘召回率下降时，根据 checklist 快速定位索引延迟。');
   });
 });

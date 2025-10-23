@@ -5,10 +5,12 @@ import type {
   CreateMemoryCardPayload,
   CreateSkillPointPayload,
   ImportPreviewParams,
+  NewCardApplicationInput,
   NewEvidenceInput,
   UpdateDirectionPayload,
   UpdateMemoryCardPayload,
   UpdateSkillPointPayload,
+  UpdateNotificationPreferencesPayload,
 } from '@api';
 
 import { mockTodayWorkout, mockWorkoutSummary } from './fixtures/todayWorkout';
@@ -23,6 +25,7 @@ import {
   createEvidenceRecord,
   createDirectionRecord,
   createMemoryCardRecord,
+  createCardApplicationRecord,
   createSkillPointRecord,
   deleteDirectionRecord,
   deleteEvidenceRecord,
@@ -30,14 +33,20 @@ import {
   deleteSkillPointRecord,
   getMemoryCardRecord,
   listCardsForDirection,
+  listCardApplications,
   listDirections,
   listSkillPointsForDirection,
   listEvidenceForCard,
+  buildSyncDelta,
   updateDirectionRecord,
   updateMemoryCardRecord,
   updateSkillPointRecord,
 } from './fixtures/directions';
 import { buildVaultSnapshot } from './fixtures/vault';
+import {
+  getNotificationPreferences,
+  updateNotificationPreferencesRecord,
+} from './fixtures/settings';
 
 const searchHandler = (({ request }: { request: Request }) => {
   const url = new URL(request.url);
@@ -59,6 +68,11 @@ const API_BASE = 'http://localhost:3000';
 
 export const handlers = [
   http.get(`${API_BASE}/api/directions`, () => HttpResponse.json(listDirections())),
+  http.get(`${API_BASE}/api/sync`, ({ request }) => {
+    const url = new URL(request.url);
+    const since = url.searchParams.get('since');
+    return HttpResponse.json(buildSyncDelta(since));
+  }),
   http.post(`${API_BASE}/api/directions`, async ({ request }) => {
     const payload = (await request.json()) as CreateDirectionPayload;
     const created = createDirectionRecord(payload);
@@ -171,6 +185,32 @@ export const handlers = [
     }
     return HttpResponse.json(created, { status: 201 });
   }),
+  http.get(`${API_BASE}/api/cards/:cardId/applications`, ({ params }) => {
+    const { cardId } = params as { cardId: string };
+    const card = getMemoryCardRecord(cardId);
+    if (!card) {
+      return new HttpResponse('Card not found', { status: 404 });
+    }
+    return HttpResponse.json(listCardApplications(cardId));
+  }),
+  http.post(`${API_BASE}/api/cards/:cardId/applications`, async ({ params, request }) => {
+    const { cardId } = params as { cardId: string };
+    const card = getMemoryCardRecord(cardId);
+    if (!card) {
+      return new HttpResponse('Card not found', { status: 404 });
+    }
+    const payload = (await request.json()) as NewCardApplicationInput;
+    try {
+      const created = createCardApplicationRecord(cardId, payload);
+      if (!created) {
+        return new HttpResponse('Card not found', { status: 404 });
+      }
+      return HttpResponse.json(created, { status: 201 });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Invalid application payload';
+      return new HttpResponse(message, { status: 422 });
+    }
+  }),
   http.delete(`${API_BASE}/api/evidence/:evidenceId`, ({ params }) => {
     const { evidenceId } = params as { evidenceId: string };
     const removed = deleteEvidenceRecord(evidenceId);
@@ -197,6 +237,19 @@ export const handlers = [
   http.get(`${API_BASE}/api/progress`, () => HttpResponse.json(mockProgressSnapshot)),
   http.get(`${API_BASE}/api/settings/summary`, () => HttpResponse.json(buildSettingsSummary())),
   http.get(`${API_BASE}/api/settings/export`, () => HttpResponse.json(buildSettingsExport())),
+  http.get(`${API_BASE}/api/settings/notifications`, () =>
+    HttpResponse.json(getNotificationPreferences()),
+  ),
+  http.patch(`${API_BASE}/api/settings/notifications`, async ({ request }) => {
+    const payload = (await request.json()) as UpdateNotificationPreferencesPayload;
+    try {
+      const updated = updateNotificationPreferencesRecord(payload);
+      return HttpResponse.json(updated);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Invalid notification payload';
+      return new HttpResponse(message, { status: 422 });
+    }
+  }),
   http.get(`${API_BASE}/api/search`, searchHandler),
   http.get(`${API_BASE}/api/search/suggestions`, () => HttpResponse.json(mockSearchSuggestions)),
   http.get(`${API_BASE}/api/tree`, () => HttpResponse.json(buildTreeSnapshot())),

@@ -14,7 +14,9 @@ import {
   CardMetricList,
   useCard,
   useCardEvidence,
+  useCardApplications,
   useCardMetrics,
+  useCreateCardApplication,
   useCreateEvidence,
   useDeleteCard,
   useDeleteEvidence,
@@ -42,6 +44,14 @@ const DEFAULT_EVIDENCE: EvidenceDraft = {
   credibility: '0',
 };
 
+const formatNotedAt = (value: string) => {
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
+    return value;
+  }
+};
+
 export default function CardDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const cardId = useMemo(() => params.id, [params.id]);
@@ -50,12 +60,14 @@ export default function CardDetailScreen() {
 
   const { data: card, isLoading, error } = useCard(cardId);
   const { data: evidence, isLoading: loadingEvidence } = useCardEvidence(cardId);
+  const { data: applications, isLoading: loadingApplications } = useCardApplications(cardId);
   const metrics = useCardMetrics(card ?? undefined);
 
   const updateCard = useUpdateCard(cardId);
   const deleteCard = useDeleteCard(cardId);
   const createEvidence = useCreateEvidence(cardId);
   const deleteEvidence = useDeleteEvidence(cardId);
+  const createApplication = useCreateCardApplication(cardId);
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -67,6 +79,8 @@ export default function CardDetailScreen() {
   const [nextDue, setNextDue] = useState('');
   const [skillPointId, setSkillPointId] = useState('');
   const [evidenceDraft, setEvidenceDraft] = useState<EvidenceDraft>({ ...DEFAULT_EVIDENCE });
+  const [applicationContext, setApplicationContext] = useState('');
+  const [applicationNotedAt, setApplicationNotedAt] = useState('');
 
   useEffect(() => {
     if (!card) return;
@@ -156,6 +170,37 @@ export default function CardDetailScreen() {
       await deleteEvidence.mutateAsync(id);
     } catch (err) {
       Alert.alert('删除失败', (err as Error).message);
+    }
+  };
+
+  const handleCreateApplication = async () => {
+    if (!cardId) return;
+
+    const context = applicationContext.trim();
+    if (!context) {
+      Alert.alert('请填写应用场景');
+      return;
+    }
+
+    const notedInput = applicationNotedAt.trim();
+    const payload: { context: string; noted_at?: string | null } = { context };
+
+    if (notedInput) {
+      const parsed = new Date(notedInput);
+      if (Number.isNaN(parsed.getTime())) {
+        Alert.alert('时间格式不正确', '请使用合法的日期时间或留空。');
+        return;
+      }
+      payload.noted_at = parsed.toISOString();
+    }
+
+    try {
+      await createApplication.mutateAsync(payload);
+      setApplicationContext('');
+      setApplicationNotedAt('');
+      Alert.alert('已记录', '应用场景已登记');
+    } catch (err) {
+      Alert.alert('记录失败', (err as Error).message);
     }
   };
 
@@ -392,11 +437,58 @@ export default function CardDetailScreen() {
                 </View>
               ))}
             </View>
-          ) : (
-            <Text>暂未关联任何证据。</Text>
-          )}
-        </Card>
-      </ScrollView>
+        ) : (
+          <Text>暂未关联任何证据。</Text>
+        )}
+      </Card>
+      <Card>
+        <Text variant="subtitle">应用记录</Text>
+        <TextInput
+          value={applicationContext}
+          onChangeText={setApplicationContext}
+          placeholder="描述这张卡片最近的应用场景"
+          placeholderTextColor={theme.colors.textMuted}
+          style={[styles.input, { color: theme.colors.textPrimary, borderColor: theme.colors.border }]}
+        />
+        <TextInput
+          value={applicationNotedAt}
+          onChangeText={setApplicationNotedAt}
+          placeholder="记录时间（可选，如 2024-09-18T09:30:00Z）"
+          placeholderTextColor={theme.colors.textMuted}
+          style={[styles.input, { color: theme.colors.textPrimary, borderColor: theme.colors.border }]}
+        />
+        <Button
+          title="记录应用"
+          onPress={handleCreateApplication}
+          loading={createApplication.isPending}
+          disabled={createApplication.isPending}
+        />
+        {loadingApplications ? (
+          <View style={styles.center}>
+            <ActivityIndicator color={theme.colors.accent} />
+          </View>
+        ) : applications && applications.length > 0 ? (
+          <View style={styles.list}>
+            {applications.map((item) => (
+              <View
+                key={item.id}
+                style={[
+                  styles.application,
+                  { borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
+                ]}
+              >
+                <Text style={{ color: theme.colors.textPrimary }}>{item.context}</Text>
+                <Text variant="caption" style={{ color: theme.colors.textMuted }}>
+                  {formatNotedAt(item.noted_at)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text>尚未登记任何应用记录。</Text>
+        )}
+      </Card>
+    </ScrollView>
     </Screen>
   );
 }
@@ -448,6 +540,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     gap: 8,
+  },
+  application: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    gap: 6,
   },
   evidenceFooter: {
     flexDirection: 'row',

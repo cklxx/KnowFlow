@@ -25,11 +25,11 @@ import {
 } from '@api';
 import { TREE_SNAPSHOT_QUERY_KEY } from '@/features/tree';
 
-const DIRECTIONS_KEY = ['directions'];
+export const DIRECTIONS_QUERY_KEY = ['directions'] as const;
 
 export const useDirections = () =>
   useQuery<Direction[]>({
-    queryKey: DIRECTIONS_KEY,
+    queryKey: DIRECTIONS_QUERY_KEY,
     queryFn: fetchDirections,
   });
 
@@ -39,8 +39,8 @@ export const useCreateDirection = () => {
   return useMutation({
     mutationFn: (payload: CreateDirectionPayload) => createDirection(payload),
     onMutate: async (payload) => {
-      await queryClient.cancelQueries({ queryKey: DIRECTIONS_KEY });
-      const previous = queryClient.getQueryData<Direction[]>(DIRECTIONS_KEY) ?? [];
+      await queryClient.cancelQueries({ queryKey: DIRECTIONS_QUERY_KEY });
+      const previous = queryClient.getQueryData<Direction[]>(DIRECTIONS_QUERY_KEY) ?? [];
       const optimisticItem: Direction = {
         id: `temp-${Date.now()}`,
         name: payload.name,
@@ -49,16 +49,16 @@ export const useCreateDirection = () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      queryClient.setQueryData(DIRECTIONS_KEY, [optimisticItem, ...previous]);
+      queryClient.setQueryData(DIRECTIONS_QUERY_KEY, [optimisticItem, ...previous]);
       return { previous };
     },
     onError: (_error, _variables, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(DIRECTIONS_KEY, context.previous);
+        queryClient.setQueryData(DIRECTIONS_QUERY_KEY, context.previous);
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: DIRECTIONS_KEY });
+      queryClient.invalidateQueries({ queryKey: DIRECTIONS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: TREE_SNAPSHOT_QUERY_KEY });
     },
   });
@@ -182,7 +182,7 @@ export const useUpdateDirection = () => {
     mutationFn: ({ id, payload }: { id: string; payload: UpdateDirectionPayload }) =>
       updateDirection(id, payload),
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: DIRECTIONS_KEY });
+      queryClient.invalidateQueries({ queryKey: DIRECTIONS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: TREE_SNAPSHOT_QUERY_KEY });
     },
   });
@@ -194,7 +194,7 @@ export const useDeleteDirection = () => {
   return useMutation({
     mutationFn: (id: string) => deleteDirection(id),
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: DIRECTIONS_KEY });
+      queryClient.invalidateQueries({ queryKey: DIRECTIONS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: TREE_SNAPSHOT_QUERY_KEY });
     },
   });

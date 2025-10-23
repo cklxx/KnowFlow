@@ -1,11 +1,12 @@
 use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
-use sqlx::{Row, SqlitePool};
+use sqlx::{query, Row, SqlitePool};
 use uuid::Uuid;
 
 use crate::domain::{Direction, DirectionDraft, DirectionStage, DirectionUpdate};
 use crate::error::{AppError, AppResult};
+use crate::repositories::sync::{record_tombstone_tx, SyncEntity, TombstoneMetadata};
 
 #[derive(Clone)]
 pub struct DirectionRepository<'a> {
@@ -97,12 +98,113 @@ impl<'a> DirectionRepository<'a> {
     }
 
     pub async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let result = sqlx::query("DELETE FROM directions WHERE id = ?")
+        let mut tx = self.pool.begin().await?;
+
+        let skill_point_rows = query("SELECT id FROM skill_points WHERE direction_id = ?")
             .bind(id.to_string())
-            .execute(self.pool)
+            .fetch_all(&mut *tx)
             .await?;
 
-        Ok(result.rows_affected() > 0)
+        let card_rows = query("SELECT id, skill_point_id FROM memory_cards WHERE direction_id = ?")
+            .bind(id.to_string())
+            .fetch_all(&mut *tx)
+            .await?;
+
+        let result = query("DELETE FROM directions WHERE id = ?")
+            .bind(id.to_string())
+            .execute(&mut *tx)
+            .await?;
+
+        if result.rows_affected() == 0 {
+            tx.rollback().await?;
+            return Ok(false);
+        }
+
+        let deleted_at = Utc::now();
+
+        for row in skill_point_rows {
+            let skill_id: String = row.get("id");
+            let skill_id =
+                Uuid::parse_str(&skill_id).map_err(|err| AppError::Validation(err.to_string()))?;
+            record_tombstone_tx(
+                tx.as_mut(),
+                SyncEntity::SkillPoint,
+                skill_id,
+                TombstoneMetadata {
+                    direction_id: Some(id),
+                    ..Default::default()
+                },
+                deleted_at,
+            )
+            .await?;
+        }
+
+        for row in card_rows {
+            let card_id: String = row.get("id");
+            let card_id =
+                Uuid::parse_str(&card_id).map_err(|err| AppError::Validation(err.to_string()))?;
+            let skill_point_id: Option<String> = row.get("skill_point_id");
+            let skill_point_id = match skill_point_id {
+                Some(value) if !value.is_empty() => Some(
+                    Uuid::parse_str(&value).map_err(|err| AppError::Validation(err.to_string()))?,
+                ),
+                _ => None,
+            };
+
+            record_tombstone_tx(
+                tx.as_mut(),
+                SyncEntity::MemoryCard,
+                card_id,
+                TombstoneMetadata {
+                    direction_id: Some(id),
+                    skill_point_id,
+                },
+                deleted_at,
+            )
+            .await?;
+        }
+
+        record_tombstone_tx(
+            tx.as_mut(),
+            SyncEntity::Direction,
+            id,
+            TombstoneMetadata {
+                direction_id: Some(id),
+                ..Default::default()
+            },
+            deleted_at,
+        )
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(true)
+    }
+
+    pub async fn list_updated_between(
+        &self,
+        since: Option<DateTime<Utc>>,
+        until: DateTime<Utc>,
+    ) -> AppResult<Vec<Direction>> {
+        let mut sql = String::from(
+            "SELECT id, name, stage, quarterly_goal, created_at, updated_at FROM directions WHERE updated_at <= ?",
+        );
+
+        if since.is_some() {
+            sql.push_str(" AND updated_at > ?");
+        }
+
+        sql.push_str(" ORDER BY created_at DESC");
+
+        let mut query = sqlx::query(&sql).bind(until.to_rfc3339());
+
+        if let Some(since) = since {
+            query = query.bind(since.to_rfc3339());
+        }
+
+        let rows = query.fetch_all(self.pool).await?;
+
+        rows.into_iter().map(DirectionRow::try_from_row).collect()
     }
 }
 

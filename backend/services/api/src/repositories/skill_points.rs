@@ -1,9 +1,10 @@
 use chrono::{DateTime, Utc};
-use sqlx::{Row, SqlitePool};
+use sqlx::{query, Row, SqlitePool};
 use uuid::Uuid;
 
 use crate::domain::{SkillLevel, SkillPoint, SkillPointDraft, SkillPointUpdate};
 use crate::error::{AppError, AppResult};
+use crate::repositories::sync::{record_tombstone_tx, SyncEntity, TombstoneMetadata};
 
 #[derive(Clone)]
 pub struct SkillPointRepository<'a> {
@@ -124,12 +125,86 @@ impl<'a> SkillPointRepository<'a> {
     }
 
     pub async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let result = sqlx::query("DELETE FROM skill_points WHERE id = ?")
+        let mut tx = self.pool.begin().await?;
+
+        let row = query("SELECT id, direction_id FROM skill_points WHERE id = ?")
             .bind(id.to_string())
-            .execute(self.pool)
+            .fetch_optional(&mut *tx)
             .await?;
 
-        Ok(result.rows_affected() > 0)
+        let Some(record) = row else {
+            tx.rollback().await?;
+            return Ok(false);
+        };
+
+        let direction_id: String = record.get("direction_id");
+        let direction_id =
+            Uuid::parse_str(&direction_id).map_err(|err| AppError::Validation(err.to_string()))?;
+
+        let now = Utc::now();
+
+        query("UPDATE memory_cards SET skill_point_id = NULL, updated_at = ? WHERE skill_point_id = ?")
+            .bind(now.to_rfc3339())
+            .bind(id.to_string())
+            .execute(&mut *tx)
+            .await?;
+
+        let result = query("DELETE FROM skill_points WHERE id = ?")
+            .bind(id.to_string())
+            .execute(&mut *tx)
+            .await?;
+
+        if result.rows_affected() == 0 {
+            tx.rollback().await?;
+            return Ok(false);
+        }
+
+        record_tombstone_tx(
+            tx.as_mut(),
+            SyncEntity::SkillPoint,
+            id,
+            TombstoneMetadata {
+                direction_id: Some(direction_id),
+                ..Default::default()
+            },
+            now,
+        )
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(true)
+    }
+
+    pub async fn list_updated_between(
+        &self,
+        since: Option<DateTime<Utc>>,
+        until: DateTime<Utc>,
+    ) -> AppResult<Vec<SkillPoint>> {
+        let mut sql = String::from(
+            "SELECT id, direction_id, name, summary, level, created_at, updated_at FROM skill_points WHERE updated_at <= ?",
+        );
+
+        if since.is_some() {
+            sql.push_str(" AND updated_at > ?");
+        }
+
+        sql.push_str(" ORDER BY created_at ASC");
+
+        let mut query = sqlx::query(&sql).bind(until.to_rfc3339());
+
+        if let Some(since) = since {
+            query = query.bind(since.to_rfc3339());
+        }
+
+        let rows = query.fetch_all(self.pool).await?;
+
+        rows.into_iter()
+            .map(SkillPointRow::try_from_row)
+            .collect::<Result<Vec<_>, AppError>>()?
+            .into_iter()
+            .map(|row| row.into_domain())
+            .collect()
     }
 }
 
