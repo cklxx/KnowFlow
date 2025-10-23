@@ -62,6 +62,31 @@ The API currently exposes the minimal surface required by the v0 product:
 
 By default the server reads `DATABASE_URL` (defaults to `sqlite://./knowflow.db`) and runs embedded SQLx migrations on boot.
 
+### One-command dev workflows
+
+To boot both the backend and the Expo web app with a single command, use the helper scripts under `scripts/`:
+
+```bash
+# start backend + frontend together
+./scripts/dev.sh
+
+# or launch either side individually
+./scripts/start-backend.sh
+./scripts/start-frontend.sh
+```
+
+The frontend script installs dependencies on first run and respects `WEB_PORT` (default `8081`) and `EXPO_PUBLIC_API_BASE_URL` (default `http://localhost:3000`).
+
+### Docker Compose deployment
+
+Build and run both services with Docker by using the provided `docker-compose.yml`:
+
+```bash
+docker compose up --build
+```
+
+The stack exposes the backend on `http://localhost:3000` and serves the static web build on `http://localhost:8080`. Requests from the web UI are proxied to the API, so no additional environment tweaks are required.
+
 LLM-driven generation is optional. Configure the following environment variables to enable different providers:
 
 - `LLM_PROVIDER` – `remote` (default) hits OpenAI-compatible HTTP APIs, `ollama` uses a local Ollama runtime for CPU inference.
