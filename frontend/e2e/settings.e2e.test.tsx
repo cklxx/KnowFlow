@@ -48,4 +48,40 @@ describe('Settings workspace end-to-end', () => {
 
     alertSpy.mockRestore();
   });
+
+  it('updates notification preferences', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+
+    renderSettings();
+
+    await screen.findByText('提醒设置');
+    await screen.findByDisplayValue('20:30');
+
+    const dailyTimeInput = screen.getByDisplayValue('20:30');
+    fireEvent.changeText(dailyTimeInput, '21:15');
+
+    const dueTimeInput = screen.getByDisplayValue('18:45');
+    fireEvent.changeText(dueTimeInput, '19:00');
+
+    const remindMinutesInput = screen.getByDisplayValue('45');
+    fireEvent.changeText(remindMinutesInput, '30');
+
+    const reviewOptions = screen.getAllByText('复习');
+    fireEvent.press(reviewOptions[0]);
+
+    const todayOptions = screen.getAllByText('今日');
+    fireEvent.press(todayOptions[1]);
+
+    fireEvent.press(screen.getByText('保存提醒设置'));
+
+    await waitFor(() =>
+      expect(alertSpy).toHaveBeenCalledWith('通知已更新', '提醒设置保存成功。'),
+    );
+
+    await screen.findByDisplayValue('21:15');
+    await screen.findByDisplayValue('19:00');
+    await screen.findByDisplayValue('30');
+
+    alertSpy.mockRestore();
+  });
 });

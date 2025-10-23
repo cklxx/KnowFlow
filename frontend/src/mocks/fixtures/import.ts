@@ -118,11 +118,13 @@ const cloneDraft = (draft: PreviewDraft): PreviewDraft => ({
 const snip = (value: string, length: number) =>
   value.length <= length ? value : `${value.slice(0, length)}…`;
 
+const MAX_DRAFTS_PER_CLUSTER = 8;
+
 export const buildImportPreview = (payload?: ImportPreviewParams): ImportPreview => {
   const directionName = payload?.directionName?.trim();
   const language = payload?.language?.trim();
   const desired = payload?.desiredCardsPerCluster && payload.desiredCardsPerCluster > 0
-    ? payload.desiredCardsPerCluster
+    ? Math.min(payload.desiredCardsPerCluster, MAX_DRAFTS_PER_CLUSTER)
     : null;
   const sources = payload?.sources ?? [];
 

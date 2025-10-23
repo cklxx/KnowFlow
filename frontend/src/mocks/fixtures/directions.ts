@@ -2,9 +2,11 @@ import type {
   CreateDirectionPayload,
   CreateMemoryCardPayload,
   CreateSkillPointPayload,
+  CardApplication,
   Direction,
   Evidence,
   MemoryCard,
+  NewCardApplicationInput,
   NewEvidenceInput,
   OnboardingBootstrapPayload,
   OnboardingBootstrapResult,
@@ -45,6 +47,7 @@ type CardStoreEntry = MemoryCard & {
 };
 
 type EvidenceRecord = Evidence;
+type CardApplicationRecord = CardApplication;
 
 const baseDirections: Direction[] = [
   {
@@ -344,10 +347,32 @@ const baseEvidence: EvidenceRecord[] = [
   },
 ];
 
+const baseCardApplications: CardApplicationRecord[] = [
+  {
+    id: 'app-hnsw-incident',
+    card_id: 'card-hnsw-graph',
+    context: '上线前对 HNSW 图参数进行复盘，确认 ef 与 M 的组合满足召回率目标。',
+    noted_at: '2024-09-29T12:10:00.000Z',
+  },
+  {
+    id: 'app-hnsw-recall-hotfix',
+    card_id: 'card-hnsw-recall',
+    context: '复盘召回率事故，按照 checklist 快速排查增量构建延迟并回滚。',
+    noted_at: '2024-10-06T03:05:00.000Z',
+  },
+  {
+    id: 'app-async-waker-launch',
+    card_id: 'card-async-waker',
+    context: '上线自定义 Waker 前进行 checklist 验证，避免 double wake 问题复现。',
+    noted_at: '2024-09-30T16:20:00.000Z',
+  },
+];
+
 const cloneDirection = (direction: Direction): Direction => ({ ...direction });
 const cloneSkillPoint = (skillPoint: SkillPoint): SkillPoint => ({ ...skillPoint });
 const cloneCard = (card: CardStoreEntry): CardStoreEntry => ({ ...card });
 const cloneEvidence = (evidence: EvidenceRecord): EvidenceRecord => ({ ...evidence });
+const cloneCardApplication = (application: CardApplicationRecord): CardApplicationRecord => ({ ...application });
 
 const replaceArray = <T>(target: T[], next: T[]) => {
   target.splice(0, target.length, ...next);
@@ -358,6 +383,7 @@ const store = {
   skillPoints: baseSkillPoints.map(cloneSkillPoint),
   cards: baseCards.map(cloneCard),
   evidence: baseEvidence.map(cloneEvidence),
+  applications: baseCardApplications.map(cloneCardApplication),
 };
 
 const createId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -397,6 +423,11 @@ const evidenceForCard = (cardId: string) =>
   store.evidence
     .filter((item) => item.card_id === cardId)
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+const applicationsForCard = (cardId: string) =>
+  store.applications
+    .filter((item) => item.card_id === cardId)
+    .sort((a, b) => b.noted_at.localeCompare(a.noted_at));
 
 const skillPointsForDirection = (directionId: string) =>
   store.skillPoints
@@ -509,6 +540,10 @@ export const deleteDirectionRecord = (id: string): boolean => {
     store.evidence,
     store.evidence.filter((item) => !removedCardIds.has(item.card_id)).map(cloneEvidence),
   );
+  replaceArray(
+    store.applications,
+    store.applications.filter((item) => !removedCardIds.has(item.card_id)).map(cloneCardApplication),
+  );
   return true;
 };
 
@@ -587,6 +622,9 @@ export const getMemoryCardRecord = (id: string): MemoryCard | null => {
 export const listEvidenceForCard = (cardId: string) =>
   evidenceForCard(cardId).map(cloneEvidence);
 
+export const listCardApplications = (cardId: string) =>
+  applicationsForCard(cardId).map(cloneCardApplication);
+
 export const createEvidenceRecord = (
   cardId: string,
   payload: NewEvidenceInput,
@@ -612,6 +650,46 @@ export const createEvidenceRecord = (
   card.updated_at = timestamp;
 
   return cloneEvidence(evidence);
+};
+
+export const createCardApplicationRecord = (
+  cardId: string,
+  payload: NewCardApplicationInput,
+): CardApplication | null => {
+  const card = findCardById(cardId);
+  if (!card) {
+    return null;
+  }
+
+  const context = payload.context.trim();
+  if (!context) {
+    throw new Error('Context is required');
+  }
+
+  let notedAt: string;
+  if (payload.noted_at) {
+    const parsed = new Date(payload.noted_at);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new Error('Invalid noted_at value');
+    }
+    notedAt = parsed.toISOString();
+  } else {
+    notedAt = new Date().toISOString();
+  }
+
+  const application: CardApplicationRecord = {
+    id: createId('app'),
+    card_id: cardId,
+    context,
+    noted_at: notedAt,
+  };
+
+  store.applications.unshift(application);
+  card.application_count = Math.max(0, card.application_count) + 1;
+  card.last_applied_at = notedAt;
+  card.updated_at = notedAt;
+
+  return cloneCardApplication(application);
 };
 
 export const deleteEvidenceRecord = (id: string): boolean => {
@@ -732,6 +810,11 @@ export const deleteMemoryCardRecord = (id: string): boolean => {
       store.evidence.splice(i, 1);
     }
   }
+  for (let i = store.applications.length - 1; i >= 0; i -= 1) {
+    if (store.applications[i].card_id === id) {
+      store.applications.splice(i, 1);
+    }
+  }
   return true;
 };
 
@@ -764,6 +847,7 @@ export const resetMockDirectionData = () => {
   replaceArray(store.skillPoints, baseSkillPoints.map(cloneSkillPoint));
   replaceArray(store.cards, baseCards.map(cloneCard));
   replaceArray(store.evidence, baseEvidence.map(cloneEvidence));
+  replaceArray(store.applications, baseCardApplications.map(cloneCardApplication));
   treeGeneratedAtOverride = null;
 };
 
@@ -772,6 +856,23 @@ export const listAllSkillPoints = () => store.skillPoints.map(cloneSkillPoint);
 export const listAllCards = () => store.cards.map(toMemoryCard);
 
 export const listAllEvidenceRecords = () => store.evidence.map(cloneEvidence);
+
+export const buildSyncDelta = (since?: string | null) => ({
+  since: since ?? null,
+  cursor: new Date().toISOString(),
+  directions: {
+    updated: listDirections(),
+    deleted: [],
+  },
+  skill_points: {
+    updated: listAllSkillPoints(),
+    deleted: [],
+  },
+  memory_cards: {
+    updated: listAllCards(),
+    deleted: [],
+  },
+});
 
 const cloneTodayPlan = () =>
   JSON.parse(JSON.stringify(mockTodayWorkout)) as typeof mockTodayWorkout;

@@ -199,4 +199,3 @@ ORDER BY card_id ASC, tag ASC
         card_tags,
     }))
 }
-

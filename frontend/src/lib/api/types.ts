@@ -39,6 +39,18 @@ export type MemoryCard = {
   updated_at: string;
 };
 
+export type CardApplication = {
+  id: string;
+  card_id: string;
+  context: string;
+  noted_at: string;
+};
+
+export type NewCardApplicationInput = {
+  context: string;
+  noted_at?: string | null;
+};
+
 export type MemoryCardDraft = {
   skill_point_id: string | null;
   title: string;
@@ -232,6 +244,26 @@ export type SettingsSummary = {
   skill_point_count: number;
   card_count: number;
 };
+
+export type NotificationPreferences = {
+  daily_reminder_enabled: boolean;
+  daily_reminder_time: string;
+  daily_reminder_target: 'today' | 'review';
+  due_reminder_enabled: boolean;
+  due_reminder_time: string;
+  due_reminder_target: 'today' | 'review';
+  remind_before_due_minutes: number;
+};
+
+export type UpdateNotificationPreferencesPayload = Partial<{
+  daily_reminder_enabled: boolean;
+  daily_reminder_time: string;
+  daily_reminder_target: NotificationPreferences['daily_reminder_target'];
+  due_reminder_enabled: boolean;
+  due_reminder_time: string;
+  due_reminder_target: NotificationPreferences['due_reminder_target'];
+  remind_before_due_minutes: number;
+}>;
 
 export type SettingsDirectionExport = {
   id: string;
@@ -622,4 +654,32 @@ export type SearchSuggestionGroup = {
 
 export type SearchSuggestionsResponse = {
   groups: SearchSuggestionGroup[];
+};
+
+export type SyncEntityDelta<T, D> = {
+  updated: T[];
+  deleted: D[];
+};
+
+export type DeletedDirectionRef = {
+  id: string;
+};
+
+export type DeletedSkillPointRef = {
+  id: string;
+  direction_id: string;
+};
+
+export type DeletedMemoryCardRef = {
+  id: string;
+  direction_id: string;
+  skill_point_id: string | null;
+};
+
+export type SyncResponse = {
+  since: string | null;
+  cursor: string;
+  directions: SyncEntityDelta<Direction, DeletedDirectionRef>;
+  skill_points: SyncEntityDelta<SkillPoint, DeletedSkillPointRef>;
+  memory_cards: SyncEntityDelta<MemoryCard, DeletedMemoryCardRef>;
 };

@@ -324,6 +324,55 @@ paths:
           description: Memory card deleted
         '404':
           description: Memory card not found
+  /api/cards/{cardId}/applications:
+    get:
+      summary: List card applications
+      operationId: listCardApplications
+      parameters:
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Applications associated with the card
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CardApplication'
+        '404':
+          description: Card not found
+    post:
+      summary: Log card application
+      operationId: createCardApplication
+      parameters:
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCardApplicationRequest'
+      responses:
+        '201':
+          description: Card application recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardApplication'
+        '404':
+          description: Card not found
+        '422':
+          description: Invalid application payload
   /api/intelligence/card-drafts:
     post:
       summary: Generate memory card drafts from materials
@@ -366,6 +415,27 @@ paths:
           description: Invalid import payload
         '500':
           description: Import preview failed
+  /api/sync:
+    get:
+      summary: Fetch incremental updates
+      operationId: fetchSyncDelta
+      parameters:
+        - name: since
+          in: query
+          required: false
+          description: RFC3339 timestamp cursor for the last successful sync.
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Incremental changes for directions, skill points, and memory cards
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncResponse'
+        '422':
+          description: Invalid sync cursor
   /api/onboarding/bootstrap:
     post:
       summary: Bootstrap workspace with initial directions, skills, and cards
@@ -564,8 +634,136 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SettingsExportResponse'
+  /api/settings/notifications:
+    get:
+      summary: Get notification preferences
+      operationId: getNotificationPreferences
+      responses:
+        '200':
+          description: Current reminder configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPreferences'
+    patch:
+      summary: Update notification preferences
+      operationId: updateNotificationPreferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNotificationPreferencesRequest'
+      responses:
+        '200':
+          description: Updated reminder configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPreferences'
+        '400':
+          description: Invalid notification payload
 components:
   schemas:
+    SyncResponse:
+      type: object
+      properties:
+        since:
+          type: string
+          format: date-time
+          nullable: true
+        cursor:
+          type: string
+          format: date-time
+        directions:
+          $ref: '#/components/schemas/DirectionDelta'
+        skill_points:
+          $ref: '#/components/schemas/SkillPointDelta'
+        memory_cards:
+          $ref: '#/components/schemas/MemoryCardDelta'
+      required:
+        - cursor
+        - directions
+        - skill_points
+        - memory_cards
+    DirectionDelta:
+      type: object
+      properties:
+        updated:
+          type: array
+          items:
+            $ref: '#/components/schemas/Direction'
+        deleted:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeletedDirection'
+      required:
+        - updated
+        - deleted
+    DeletedDirection:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+      required:
+        - id
+    SkillPointDelta:
+      type: object
+      properties:
+        updated:
+          type: array
+          items:
+            $ref: '#/components/schemas/SkillPoint'
+        deleted:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeletedSkillPoint'
+      required:
+        - updated
+        - deleted
+    DeletedSkillPoint:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        direction_id:
+          type: string
+          format: uuid
+      required:
+        - id
+        - direction_id
+    MemoryCardDelta:
+      type: object
+      properties:
+        updated:
+          type: array
+          items:
+            $ref: '#/components/schemas/MemoryCard'
+        deleted:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeletedMemoryCard'
+      required:
+        - updated
+        - deleted
+    DeletedMemoryCard:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        direction_id:
+          type: string
+          format: uuid
+        skill_point_id:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+        - id
+        - direction_id
     VaultSnapshotResponse:
       type: object
       properties:
@@ -1111,6 +1309,25 @@ components:
         - priority
         - created_at
         - updated_at
+    CardApplication:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        card_id:
+          type: string
+          format: uuid
+        context:
+          type: string
+        noted_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - card_id
+        - context
+        - noted_at
     CreateMemoryCardRequest:
       type: object
       properties:
@@ -1144,6 +1361,17 @@ components:
         - title
         - body
         - card_type
+    CreateCardApplicationRequest:
+      type: object
+      properties:
+        context:
+          type: string
+        noted_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - context
     UpdateMemoryCardRequest:
       type: object
       properties:
@@ -1681,6 +1909,7 @@ components:
         desired_cards_per_cluster:
           type: integer
           minimum: 1
+          maximum: 8
           default: 3
         sources:
           type: array
@@ -2242,6 +2471,58 @@ components:
         - direction_count
         - skill_point_count
         - card_count
+    NotificationPreferences:
+      type: object
+      properties:
+        daily_reminder_enabled:
+          type: boolean
+        daily_reminder_time:
+          type: string
+          example: '21:00'
+        daily_reminder_target:
+          type: string
+          enum: [today, review]
+        due_reminder_enabled:
+          type: boolean
+        due_reminder_time:
+          type: string
+          example: '20:30'
+        due_reminder_target:
+          type: string
+          enum: [today, review]
+        remind_before_due_minutes:
+          type: integer
+          format: int32
+      required:
+        - daily_reminder_enabled
+        - daily_reminder_time
+        - daily_reminder_target
+        - due_reminder_enabled
+        - due_reminder_time
+        - due_reminder_target
+        - remind_before_due_minutes
+    UpdateNotificationPreferencesRequest:
+      type: object
+      properties:
+        daily_reminder_enabled:
+          type: boolean
+        daily_reminder_time:
+          type: string
+          example: '21:00'
+        daily_reminder_target:
+          type: string
+          enum: [today, review]
+        due_reminder_enabled:
+          type: boolean
+        due_reminder_time:
+          type: string
+          example: '20:30'
+        due_reminder_target:
+          type: string
+          enum: [today, review]
+        remind_before_due_minutes:
+          type: integer
+          format: int32
     SettingsExportResponse:
       type: object
       properties:

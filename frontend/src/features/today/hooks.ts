@@ -11,11 +11,11 @@ import {
 
 export type { TodayWorkoutPlan, WorkoutResultKind, WorkoutCompletionSummary } from '@api';
 
-const TODAY_WORKOUT_KEY = ['today-workout'];
+export const TODAY_WORKOUT_QUERY_KEY = ['today-workout'] as const;
 
 export const useTodayWorkout = () =>
   useQuery<TodayWorkoutPlan | null>({
-    queryKey: TODAY_WORKOUT_KEY,
+    queryKey: TODAY_WORKOUT_QUERY_KEY,
     queryFn: fetchTodayWorkout,
   });
 
@@ -41,7 +41,7 @@ export const useCompleteWorkout = () => {
   >({
     mutationFn: ({ workoutId, results }) => completeWorkout(workoutId, results),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TODAY_WORKOUT_KEY });
+      queryClient.invalidateQueries({ queryKey: TODAY_WORKOUT_QUERY_KEY });
     },
   });
 };

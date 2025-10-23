@@ -9,7 +9,7 @@ use tracing::warn;
 use crate::config::{LlmProviderConfig, LlmSettings, OllamaConfig, RemoteLlmConfig};
 use crate::domain::{CardType, MemoryCardDraft};
 
-const MAX_GENERATION_TARGET: usize = 8;
+pub(crate) const MAX_GENERATION_TARGET: usize = 8;
 
 #[derive(Clone)]
 pub struct LlmClient {

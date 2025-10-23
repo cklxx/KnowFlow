@@ -11,4 +11,5 @@ export * from './onboarding';
 export * from './evidence';
 export * from './import';
 export * from './settings';
+export * from './sync';
 export { apiConfig, buildUrl } from './config';

@@ -2,20 +2,25 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  createCardApplication,
   createEvidence,
   deleteCard,
   getCard,
+  listCardApplications,
   listEvidence,
   removeEvidence,
   updateCard,
+  type CardApplication,
   type Evidence,
   type MemoryCard,
+  type NewCardApplicationInput,
   type NewEvidenceInput,
   type UpdateCardPayload,
 } from '@api';
 
 const CARD_QUERY_KEY = (id: string) => ['card', id];
 const CARD_EVIDENCE_KEY = (id: string) => ['card-evidence', id];
+const CARD_APPLICATIONS_KEY = (id: string) => ['card-applications', id];
 
 export const useCard = (id?: string) =>
   useQuery<MemoryCard>({
@@ -78,6 +83,28 @@ export const useDeleteEvidence = (cardId?: string) => {
       if (!cardId) return;
       queryClient.setQueryData<Evidence[]>(CARD_EVIDENCE_KEY(cardId), (current) =>
         current?.filter((item) => item.id !== evidenceId) ?? [],
+      );
+    },
+  });
+};
+
+export const useCardApplications = (id?: string) =>
+  useQuery<CardApplication[]>({
+    queryKey: CARD_APPLICATIONS_KEY(id ?? ''),
+    queryFn: () => listCardApplications(id ?? ''),
+    enabled: Boolean(id),
+    staleTime: 1000 * 15,
+  });
+
+export const useCreateCardApplication = (id?: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: NewCardApplicationInput) =>
+      createCardApplication(id ?? '', payload),
+    onSuccess: (created) => {
+      if (!id) return;
+      queryClient.setQueryData<CardApplication[]>(CARD_APPLICATIONS_KEY(id), (current) =>
+        current ? [created, ...current] : [created],
       );
     },
   });

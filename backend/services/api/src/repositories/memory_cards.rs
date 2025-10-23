@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
-use sqlx::{QueryBuilder, Sqlite};
-use sqlx::{Row, SqlitePool};
+use sqlx::{query, QueryBuilder, Row, Sqlite, SqlitePool};
 use uuid::Uuid;
 
 use crate::domain::{CardType, MemoryCard, MemoryCardDraft, MemoryCardUpdate, WorkoutResultKind};
 use crate::error::{AppError, AppResult};
+use crate::repositories::sync::{record_tombstone_tx, SyncEntity, TombstoneMetadata};
 
 #[derive(Clone)]
 pub struct MemoryCardRepository<'a> {
@@ -344,12 +344,83 @@ impl<'a> MemoryCardRepository<'a> {
     }
 
     pub async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let result = sqlx::query("DELETE FROM memory_cards WHERE id = ?")
+        let mut tx = self.pool.begin().await?;
+
+        let row = query("SELECT direction_id, skill_point_id FROM memory_cards WHERE id = ?")
             .bind(id.to_string())
-            .execute(self.pool)
+            .fetch_optional(&mut *tx)
             .await?;
 
-        Ok(result.rows_affected() > 0)
+        let Some(record) = row else {
+            tx.rollback().await?;
+            return Ok(false);
+        };
+
+        let direction_id: String = record.get("direction_id");
+        let direction_id =
+            Uuid::parse_str(&direction_id).map_err(|err| AppError::Validation(err.to_string()))?;
+
+        let skill_point_id: Option<String> = record.get("skill_point_id");
+        let skill_point_id = match skill_point_id {
+            Some(value) if !value.is_empty() => {
+                Some(Uuid::parse_str(&value).map_err(|err| AppError::Validation(err.to_string()))?)
+            }
+            _ => None,
+        };
+
+        let result = query("DELETE FROM memory_cards WHERE id = ?")
+            .bind(id.to_string())
+            .execute(&mut *tx)
+            .await?;
+
+        if result.rows_affected() == 0 {
+            tx.rollback().await?;
+            return Ok(false);
+        }
+
+        let deleted_at = Utc::now();
+
+        record_tombstone_tx(
+            tx.as_mut(),
+            SyncEntity::MemoryCard,
+            id,
+            TombstoneMetadata {
+                direction_id: Some(direction_id),
+                skill_point_id,
+            },
+            deleted_at,
+        )
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(true)
+    }
+
+    pub async fn list_updated_between(
+        &self,
+        since: Option<DateTime<Utc>>,
+        until: DateTime<Utc>,
+    ) -> AppResult<Vec<MemoryCard>> {
+        let mut builder =
+            QueryBuilder::<Sqlite>::new("SELECT * FROM memory_cards WHERE updated_at <= ");
+        builder.push_bind(until.to_rfc3339());
+
+        if let Some(since) = since {
+            builder.push(" AND updated_at > ");
+            builder.push_bind(since.to_rfc3339());
+        }
+
+        builder.push(" ORDER BY created_at DESC");
+
+        let rows = builder.build().fetch_all(self.pool).await?;
+
+        rows.into_iter()
+            .map(MemoryCardRow::try_from_row)
+            .collect::<Result<Vec<_>, AppError>>()?
+            .into_iter()
+            .map(|row| row.into_domain())
+            .collect()
     }
 }
 

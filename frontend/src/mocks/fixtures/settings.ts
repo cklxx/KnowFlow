@@ -5,9 +5,45 @@ import type {
   SettingsExport,
   SettingsSkillPointExport,
   SettingsSummary,
+  NotificationPreferences,
+  UpdateNotificationPreferencesPayload,
 } from '@api';
 
 import { listAllCards, listAllEvidenceRecords, listAllSkillPoints, listDirections } from './directions';
+
+const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  daily_reminder_enabled: true,
+  daily_reminder_time: '20:30',
+  daily_reminder_target: 'today',
+  due_reminder_enabled: true,
+  due_reminder_time: '18:45',
+  due_reminder_target: 'review',
+  remind_before_due_minutes: 45,
+};
+
+let notificationPreferences: NotificationPreferences = { ...DEFAULT_NOTIFICATION_PREFERENCES };
+
+const cloneNotificationPreferences = (prefs: NotificationPreferences): NotificationPreferences => ({ ...prefs });
+
+const isValidTime = (value: string) => {
+  const timePattern = /^(\d{2}):(\d{2})$/;
+  const match = timePattern.exec(value);
+  if (!match) {
+    return false;
+  }
+  const hours = Number.parseInt(match[1], 10);
+  const minutes = Number.parseInt(match[2], 10);
+  return hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60;
+};
+
+const assertReminderTarget = (
+  value: NotificationPreferences['daily_reminder_target'],
+): NotificationPreferences['daily_reminder_target'] => {
+  if (value !== 'today' && value !== 'review') {
+    throw new Error('Invalid reminder target');
+  }
+  return value;
+};
 
 const buildDirectionExports = () =>
   listDirections().map((direction) => ({
@@ -92,4 +128,52 @@ export const buildSettingsExport = (): SettingsExport => {
     evidence,
     card_tags: buildCardTags(cards),
   };
+};
+
+export const getNotificationPreferences = (): NotificationPreferences =>
+  cloneNotificationPreferences(notificationPreferences);
+
+export const updateNotificationPreferencesRecord = (
+  payload: UpdateNotificationPreferencesPayload,
+): NotificationPreferences => {
+  const next = { ...notificationPreferences };
+
+  if (payload.daily_reminder_enabled !== undefined) {
+    next.daily_reminder_enabled = payload.daily_reminder_enabled;
+  }
+  if (payload.daily_reminder_time !== undefined) {
+    const time = payload.daily_reminder_time.trim();
+    if (!isValidTime(time)) {
+      throw new Error('Invalid daily reminder time');
+    }
+    next.daily_reminder_time = time;
+  }
+  if (payload.daily_reminder_target !== undefined) {
+    next.daily_reminder_target = assertReminderTarget(payload.daily_reminder_target);
+  }
+
+  if (payload.due_reminder_enabled !== undefined) {
+    next.due_reminder_enabled = payload.due_reminder_enabled;
+  }
+  if (payload.due_reminder_time !== undefined) {
+    const time = payload.due_reminder_time.trim();
+    if (!isValidTime(time)) {
+      throw new Error('Invalid due reminder time');
+    }
+    next.due_reminder_time = time;
+  }
+  if (payload.due_reminder_target !== undefined) {
+    next.due_reminder_target = assertReminderTarget(payload.due_reminder_target);
+  }
+
+  if (payload.remind_before_due_minutes !== undefined) {
+    const value = payload.remind_before_due_minutes;
+    if (!Number.isFinite(value) || value < 0) {
+      throw new Error('Invalid remind_before_due_minutes');
+    }
+    next.remind_before_due_minutes = Math.floor(value);
+  }
+
+  notificationPreferences = next;
+  return getNotificationPreferences();
 };
