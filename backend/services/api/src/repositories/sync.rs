@@ -59,7 +59,10 @@ pub async fn record_tombstone_tx(
     deleted_at: DateTime<Utc>,
 ) -> AppResult<()> {
     let metadata_json = if metadata.direction_id.is_some() || metadata.skill_point_id.is_some() {
-        Some(serde_json::to_string(&metadata).map_err(|err| AppError::Validation(err.to_string()))?)
+        Some(
+            serde_json::to_string(&metadata)
+                .map_err(|err| AppError::Validation(err.to_string()))?,
+        )
     } else {
         None
     };
@@ -247,8 +250,8 @@ mod tests {
     use sqlx::SqlitePool;
 
     use crate::domain::{
-        CardType, Direction, DirectionDraft, DirectionStage, DirectionUpdate, MemoryCard, MemoryCardDraft,
-        SkillLevel, SkillPoint, SkillPointDraft,
+        CardType, Direction, DirectionDraft, DirectionStage, DirectionUpdate, MemoryCard,
+        MemoryCardDraft, SkillLevel, SkillPoint, SkillPointDraft,
     };
     use crate::repositories::directions::DirectionRepository;
     use crate::repositories::memory_cards::MemoryCardRepository;
@@ -332,27 +335,21 @@ mod tests {
         assert!(delta.since.is_none());
         assert!(delta.cursor > direction.updated_at);
 
-        assert!(
-            delta
-                .directions
-                .updated
-                .iter()
-                .any(|entry| entry.id == direction.id)
-        );
-        assert!(
-            delta
-                .skill_points
-                .updated
-                .iter()
-                .any(|entry| entry.id == skill.id)
-        );
-        assert!(
-            delta
-                .memory_cards
-                .updated
-                .iter()
-                .any(|entry| entry.id == card.id)
-        );
+        assert!(delta
+            .directions
+            .updated
+            .iter()
+            .any(|entry| entry.id == direction.id));
+        assert!(delta
+            .skill_points
+            .updated
+            .iter()
+            .any(|entry| entry.id == skill.id));
+        assert!(delta
+            .memory_cards
+            .updated
+            .iter()
+            .any(|entry| entry.id == card.id));
         assert!(delta.skill_points.deleted.is_empty());
         assert!(delta.memory_cards.deleted.is_empty());
     }
@@ -387,10 +384,7 @@ mod tests {
         let skills = SkillPointRepository::new(&pool);
         assert!(skills.delete(skill.id).await.expect("skill deleted"));
 
-        let delta = repo
-            .fetch_delta(Some(cursor))
-            .await
-            .expect("delta fetched");
+        let delta = repo.fetch_delta(Some(cursor)).await.expect("delta fetched");
 
         assert_eq!(delta.since, Some(cursor));
         assert!(delta.cursor > cursor);
