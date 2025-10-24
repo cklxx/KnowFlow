@@ -9,7 +9,8 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:e2e": "jest --config jest.e2e.config.js"
+    "test:e2e": "jest --config jest.e2e.config.js",
+    "test:e2e:live": "bash ../scripts/test-e2e-live.sh"
   },
   "dependencies": {
     "@react-navigation/native": "^7.0.0",

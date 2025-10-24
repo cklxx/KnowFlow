@@ -48,9 +48,25 @@ FRONTEND_PID=$!
 
 echo "[dev] Frontend PID: $FRONTEND_PID"
 
+# Monitor child processes manually for better portability (macOS bash does not support
+# `wait -n`). Loop until either process exits and capture its exit code.
 set +e
-wait -n "$BACKEND_PID" "$FRONTEND_PID"
-EXIT_CODE=$?
+EXIT_CODE=0
+while true; do
+  if [[ -n "$BACKEND_PID" ]] && ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+    wait "$BACKEND_PID" 2>/dev/null
+    EXIT_CODE=$?
+    break
+  fi
+
+  if [[ -n "$FRONTEND_PID" ]] && ! kill -0 "$FRONTEND_PID" 2>/dev/null; then
+    wait "$FRONTEND_PID" 2>/dev/null
+    EXIT_CODE=$?
+    break
+  fi
+
+  sleep 1
+done
 set -e
 
 stop_services
