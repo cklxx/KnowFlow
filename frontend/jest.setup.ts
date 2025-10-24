@@ -137,6 +137,9 @@ type GlobalWithFetch = typeof globalThis & { fetch?: typeof fetch };
 
 const globalWithFetch = global as GlobalWithFetch;
 
+const liveApiFlag = (process.env.E2E_USE_LIVE_API ?? '').toLowerCase();
+const shouldMockApi = !(liveApiFlag === '1' || liveApiFlag === 'true');
+
 const buildResponse = (data: unknown, init?: ResponseInit) =>
   new Response(JSON.stringify(data), {
     status: 200,
@@ -153,6 +156,9 @@ beforeEach(() => {
   resetMockDirectionData();
   if (!globalWithFetch.fetch) {
     globalWithFetch.fetch = fetch;
+  }
+  if (!shouldMockApi) {
+    return;
   }
   jest.spyOn(globalWithFetch, 'fetch').mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input.toString();
