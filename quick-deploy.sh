@@ -44,19 +44,6 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-DOCKER_COMPOSE=""
-if docker compose version >/dev/null 2>&1; then
-    DOCKER_COMPOSE="docker compose"
-elif command -v docker-compose &> /dev/null; then
-    DOCKER_COMPOSE="docker-compose"
-fi
-
-if [ -z "$DOCKER_COMPOSE" ]; then
-    echo "❌ Docker Compose 未安装。请先安装 Docker Compose："
-    echo "   https://docs.docker.com/compose/install/"
-    exit 1
-fi
-
 echo "✅ 所有依赖已就绪"
 echo ""
 
@@ -87,9 +74,11 @@ echo "✅ 仓库准备完成"
 echo ""
 
 # 创建 .env 文件
+FRONTEND_API_BASE="${VITE_API_BASE_URL:-http://localhost:3000}"
+
 echo "⚙️  配置环境变量..."
 cat > .env <<EOF
-# KnowFlow Docker Compose 环境变量
+# KnowFlow Docker 环境变量
 # 自动生成时间: $(date)
 
 # ===== Backend Configuration =====
@@ -108,8 +97,8 @@ LLM_MAX_TOKENS=$LLM_MAX_TOKENS
 
 # ===== Frontend Configuration =====
 
-# API Base URL for frontend (leave as default for Docker internal network)
-# VITE_API_BASE_URL=http://backend:3000
+# API Base URL for the bundled frontend
+VITE_API_BASE_URL=$FRONTEND_API_BASE
 EOF
 
 echo "✅ 环境变量已配置"
@@ -123,19 +112,52 @@ echo "   Model:        $LLM_MODEL"
 echo "   Max Tokens:   $LLM_MAX_TOKENS"
 echo ""
 
+# Docker 资源名称
+NETWORK_NAME="knowflow-net"
+BACKEND_IMAGE="knowflow-backend:latest"
+FRONTEND_IMAGE="knowflow-frontend:latest"
+BACKEND_CONTAINER="knowflow-backend"
+FRONTEND_CONTAINER="knowflow-frontend"
+BACKEND_VOLUME="knowflow-backend-data"
+
+# 创建网络和数据卷
+echo "🌐 准备 Docker 网络与数据卷..."
+if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
+    docker network create "$NETWORK_NAME"
+fi
+docker volume create "$BACKEND_VOLUME" >/dev/null 2>&1
+
 # 停止旧容器
 echo "🛑 停止现有容器（如有）..."
-$DOCKER_COMPOSE down 2>/dev/null || true
+docker rm -f "$FRONTEND_CONTAINER" >/dev/null 2>&1 || true
+docker rm -f "$BACKEND_CONTAINER" >/dev/null 2>&1 || true
 echo ""
 
-# 构建并启动
+# 构建镜像
 echo "🏗️  构建 Docker 镜像..."
 echo "   (首次构建可能需要 5-10 分钟，请耐心等待)"
-$DOCKER_COMPOSE build
+docker build -t "$BACKEND_IMAGE" -f backend/Dockerfile .
+docker build -t "$FRONTEND_IMAGE" --build-arg VITE_API_BASE_URL="$FRONTEND_API_BASE" frontend
 
 echo ""
 echo "🚀 启动服务..."
-$DOCKER_COMPOSE up -d
+docker run -d \
+    --name "$BACKEND_CONTAINER" \
+    --network "$NETWORK_NAME" \
+    --restart unless-stopped \
+    --env-file .env \
+    -e BIND_ADDRESS=0.0.0.0:3000 \
+    -e DATABASE_URL=sqlite:///data/knowflow.db \
+    -v "$BACKEND_VOLUME":/data \
+    -p 3000:3000 \
+    "$BACKEND_IMAGE"
+
+docker run -d \
+    --name "$FRONTEND_CONTAINER" \
+    --network "$NETWORK_NAME" \
+    --restart unless-stopped \
+    -p 8080:80 \
+    "$FRONTEND_IMAGE"
 
 echo ""
 echo "⏳ 等待服务启动..."
@@ -160,14 +182,14 @@ if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     echo " ❌"
     echo ""
     echo "❌ 后端服务启动失败，查看日志："
-    $DOCKER_COMPOSE logs backend
+    docker logs "$BACKEND_CONTAINER"
     exit 1
 fi
 
 RETRY_COUNT=0
 echo -n "   检查前端服务"
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if curl -sf http://localhost > /dev/null 2>&1; then
+    if curl -sf http://localhost:8080 > /dev/null 2>&1; then
         echo " ✅"
         break
     fi
@@ -180,7 +202,7 @@ if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     echo " ❌"
     echo ""
     echo "❌ 前端服务启动失败，查看日志："
-    $DOCKER_COMPOSE logs frontend
+    docker logs "$FRONTEND_CONTAINER"
     exit 1
 fi
 
@@ -190,7 +212,7 @@ echo "║   🎉 KnowFlow 部署成功！                                  ║"
 echo "╚═══════════════════════════════════════════════════════════╝"
 echo ""
 echo "📱 应用访问地址："
-echo "   前端: http://localhost"
+echo "   前端: http://localhost:8080"
 echo "   后端: http://localhost:3000"
 echo ""
 
@@ -198,16 +220,17 @@ echo ""
 SERVER_IP=$(hostname -I | awk '{print $1}' 2>/dev/null || echo "YOUR_SERVER_IP")
 if [ "$SERVER_IP" != "YOUR_SERVER_IP" ]; then
     echo "🌐 外网访问地址（如果服务器有公网 IP）："
-    echo "   前端: http://$SERVER_IP"
+    echo "   前端: http://$SERVER_IP:8080"
     echo "   后端: http://$SERVER_IP:3000"
     echo ""
 fi
 
 echo "📊 常用管理命令："
-echo "   查看日志:     cd $INSTALL_DIR && $DOCKER_COMPOSE logs -f"
-echo "   停止服务:     cd $INSTALL_DIR && docker compose down"
-echo "   重启服务:     cd $INSTALL_DIR && docker compose restart"
-echo "   更新代码:     cd $INSTALL_DIR && git pull && docker compose up --build -d"
+echo "   查看日志:     cd $INSTALL_DIR && docker logs -f $BACKEND_CONTAINER"
+echo "                  cd $INSTALL_DIR && docker logs -f $FRONTEND_CONTAINER"
+echo "   停止服务:     cd $INSTALL_DIR && docker rm -f $FRONTEND_CONTAINER $BACKEND_CONTAINER"
+echo "   重启服务:     cd $INSTALL_DIR && ./deploy.sh"
+echo "   更新代码:     cd $INSTALL_DIR && git pull && ./deploy.sh"
 echo ""
 echo "📖 详细文档: $INSTALL_DIR/DEPLOYMENT.md"
 echo ""

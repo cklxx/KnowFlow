@@ -114,17 +114,42 @@ Alternatively, build and run both services manually:
 cp .env.example .env
 # Edit .env and set your LLM API credentials
 
-# 2. Build and start services
-docker compose up --build -d
+# 2. Build production images
+docker build -t knowflow-backend:latest -f backend/Dockerfile .
+docker build -t knowflow-frontend:latest --build-arg VITE_API_BASE_URL=http://localhost:3000 frontend
 
-# 3. View logs
-docker compose logs -f
+# 3. Prepare Docker resources
+docker network create knowflow-net || true
+docker volume create knowflow-backend-data
 
-# 4. Stop services
-docker compose down
+# 4. Start containers
+docker run -d \
+  --name knowflow-backend \
+  --network knowflow-net \
+  --restart unless-stopped \
+  --env-file .env \
+  -e BIND_ADDRESS=0.0.0.0:3000 \
+  -e DATABASE_URL=sqlite:///data/knowflow.db \
+  -v knowflow-backend-data:/data \
+  -p 3000:3000 \
+  knowflow-backend:latest
+
+docker run -d \
+  --name knowflow-frontend \
+  --network knowflow-net \
+  --restart unless-stopped \
+  -p 8080:80 \
+  knowflow-frontend:latest
+
+# 5. View logs
+docker logs -f knowflow-backend
+docker logs -f knowflow-frontend
+
+# 6. Stop services
+docker rm -f knowflow-frontend knowflow-backend
 ```
 
-The stack exposes the backend API on `http://localhost:3000` and serves the production-built React application via Nginx on `http://localhost:8080`. The frontend build is optimized with Vite and configured to proxy API requests to the backend service.
+The stack exposes the backend API on `http://localhost:3000` and serves the production-built React application via Nginx on `http://localhost:8080`. The frontend build is optimized with Vite and configured to call the backend service directly.
 
 #### Environment Configuration
 

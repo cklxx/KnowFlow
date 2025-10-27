@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # KnowFlow One-Click Docker Deployment Script
-# This script builds and deploys the entire KnowFlow stack using Docker Compose
+# This script builds and deploys the entire KnowFlow stack using plain Docker commands
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -46,18 +46,61 @@ if grep -q "your-api-key-here" .env 2>/dev/null; then
     fi
 fi
 
+if ! command -v docker &> /dev/null; then
+    echo "❌ Docker is not installed. Please install Docker first:"
+    echo "   https://docs.docker.com/engine/install/"
+    exit 1
+fi
+
+FRONTEND_API_BASE=$(grep -E '^VITE_API_BASE_URL=' .env | tail -n 1 | cut -d'=' -f2-)
+if [ -z "$FRONTEND_API_BASE" ]; then
+    FRONTEND_API_BASE="http://localhost:3000"
+fi
+
+NETWORK_NAME="knowflow-net"
+BACKEND_IMAGE="knowflow-backend:latest"
+FRONTEND_IMAGE="knowflow-frontend:latest"
+BACKEND_CONTAINER="knowflow-backend"
+FRONTEND_CONTAINER="knowflow-frontend"
+BACKEND_VOLUME="knowflow-backend-data"
+
+echo ""
+echo "🌐 Preparing Docker network and volume..."
+if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
+    docker network create "$NETWORK_NAME"
+fi
+docker volume create "$BACKEND_VOLUME" >/dev/null 2>&1
+
 echo ""
 echo "🔧 Stopping existing containers (if any)..."
-docker compose down 2>/dev/null || true
+docker rm -f "$FRONTEND_CONTAINER" >/dev/null 2>&1 || true
+docker rm -f "$BACKEND_CONTAINER" >/dev/null 2>&1 || true
 
 echo ""
 echo "🏗️  Building Docker images..."
 echo "   This may take a few minutes on first run..."
-docker compose build
+docker build -t "$BACKEND_IMAGE" -f backend/Dockerfile .
+docker build -t "$FRONTEND_IMAGE" --build-arg VITE_API_BASE_URL="$FRONTEND_API_BASE" frontend
 
 echo ""
 echo "🚀 Starting services..."
-docker compose up -d
+docker run -d \
+    --name "$BACKEND_CONTAINER" \
+    --network "$NETWORK_NAME" \
+    --restart unless-stopped \
+    --env-file .env \
+    -e BIND_ADDRESS=0.0.0.0:3000 \
+    -e DATABASE_URL=sqlite:///data/knowflow.db \
+    -v "$BACKEND_VOLUME":/data \
+    -p 3000:3000 \
+    "$BACKEND_IMAGE"
+
+docker run -d \
+    --name "$FRONTEND_CONTAINER" \
+    --network "$NETWORK_NAME" \
+    --restart unless-stopped \
+    -p 8080:80 \
+    "$FRONTEND_IMAGE"
 
 echo ""
 echo "⏳ Waiting for services to be ready..."
@@ -81,7 +124,7 @@ if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     echo " ❌"
     echo ""
     echo "❌ Backend failed to start. Check logs with:"
-    echo "   docker compose logs backend"
+    echo "   docker logs $BACKEND_CONTAINER"
     exit 1
 fi
 
@@ -102,7 +145,7 @@ if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     echo " ❌"
     echo ""
     echo "❌ Frontend failed to start. Check logs with:"
-    echo "   docker compose logs frontend"
+    echo "   docker logs $FRONTEND_CONTAINER"
     exit 1
 fi
 
@@ -115,10 +158,11 @@ echo "📱 Frontend:  http://localhost:8080"
 echo "🔌 Backend:   http://localhost:3000"
 echo "💚 Health:    http://localhost:3000/health"
 echo ""
-echo "📊 View logs:        docker compose logs -f"
-echo "🛑 Stop services:    docker compose down"
-echo "🔄 Restart:          docker compose restart"
-echo "🗑️  Clean up:        docker compose down -v"
+echo "📊 View logs:        docker logs -f $BACKEND_CONTAINER"
+echo "                    docker logs -f $FRONTEND_CONTAINER"
+echo "🛑 Stop services:    docker rm -f $FRONTEND_CONTAINER $BACKEND_CONTAINER"
+echo "🔄 Restart:          ./deploy.sh"
+echo "🗑️  Clean up:        docker rm -f $FRONTEND_CONTAINER $BACKEND_CONTAINER && docker volume rm $BACKEND_VOLUME"
 echo ""
 echo "📖 For more information, see README.md"
 echo ""

@@ -365,6 +365,6 @@ paths:
    - 执行 `npm run preview --prefix frontend` 预览生产版本
    - 验证所有功能在生产环境下正常工作
 6. **Docker 部署验证**
-   - 运行 `docker compose up --build` 启动完整服务栈
+   - 运行 `./deploy.sh` 启动完整服务栈
    - 访问 `http://localhost:8080` 验证前端应用
    - 验证前端与后端 API 集成正常
