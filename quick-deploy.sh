@@ -44,7 +44,14 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-if ! command -v docker compose &> /dev/null && ! command -v docker-compose &> /dev/null; then
+DOCKER_COMPOSE=""
+if docker compose version >/dev/null 2>&1; then
+    DOCKER_COMPOSE="docker compose"
+elif command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+fi
+
+if [ -z "$DOCKER_COMPOSE" ]; then
     echo "❌ Docker Compose 未安装。请先安装 Docker Compose："
     echo "   https://docs.docker.com/compose/install/"
     exit 1
@@ -118,17 +125,17 @@ echo ""
 
 # 停止旧容器
 echo "🛑 停止现有容器（如有）..."
-docker compose down 2>/dev/null || true
+$DOCKER_COMPOSE down 2>/dev/null || true
 echo ""
 
 # 构建并启动
 echo "🏗️  构建 Docker 镜像..."
 echo "   (首次构建可能需要 5-10 分钟，请耐心等待)"
-docker compose build
+$DOCKER_COMPOSE build
 
 echo ""
 echo "🚀 启动服务..."
-docker compose up -d
+$DOCKER_COMPOSE up -d
 
 echo ""
 echo "⏳ 等待服务启动..."
@@ -153,7 +160,7 @@ if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     echo " ❌"
     echo ""
     echo "❌ 后端服务启动失败，查看日志："
-    docker compose logs backend
+    $DOCKER_COMPOSE logs backend
     exit 1
 fi
 
@@ -173,7 +180,7 @@ if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     echo " ❌"
     echo ""
     echo "❌ 前端服务启动失败，查看日志："
-    docker compose logs frontend
+    $DOCKER_COMPOSE logs frontend
     exit 1
 fi
 
@@ -197,7 +204,7 @@ if [ "$SERVER_IP" != "YOUR_SERVER_IP" ]; then
 fi
 
 echo "📊 常用管理命令："
-echo "   查看日志:     cd $INSTALL_DIR && docker compose logs -f"
+echo "   查看日志:     cd $INSTALL_DIR && $DOCKER_COMPOSE logs -f"
 echo "   停止服务:     cd $INSTALL_DIR && docker compose down"
 echo "   重启服务:     cd $INSTALL_DIR && docker compose restart"
 echo "   更新代码:     cd $INSTALL_DIR && git pull && docker compose up --build -d"
