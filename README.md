@@ -84,15 +84,51 @@ The frontend script installs dependencies on first run and starts the Vite devel
 
 ### Docker Compose deployment
 
-Build and run both services with Docker by using the provided `docker-compose.yml`:
+#### One-Click Deployment (Recommended)
+
+Use the provided deployment script for a guided setup:
 
 ```bash
-docker compose up --build
+./scripts/deploy.sh
+```
+
+This script will:
+- Check and create `.env` file if needed
+- Validate LLM API configuration
+- Build Docker images
+- Start all services
+- Verify health checks
+- Display access URLs
+
+After successful deployment:
+- **Frontend**: http://localhost:8080
+- **Backend API**: http://localhost:3000
+- **Health Check**: http://localhost:3000/health
+
+#### Manual Deployment
+
+Alternatively, build and run both services manually:
+
+```bash
+# 1. Configure environment variables
+cp .env.example .env
+# Edit .env and set your LLM API credentials
+
+# 2. Build and start services
+docker compose up --build -d
+
+# 3. View logs
+docker compose logs -f
+
+# 4. Stop services
+docker compose down
 ```
 
 The stack exposes the backend API on `http://localhost:3000` and serves the production-built React application via Nginx on `http://localhost:8080`. The frontend build is optimized with Vite and configured to proxy API requests to the backend service.
 
-LLM-driven generation is optional. Configure the following environment variables to enable different providers:
+#### Environment Configuration
+
+LLM-driven generation is optional. Configure the following environment variables in `.env` to enable different providers:
 
 - `LLM_PROVIDER` – `remote` (default) hits OpenAI-compatible HTTP APIs, `ollama` uses a local Ollama runtime for CPU inference.
 - `LLM_TIMEOUT_SECS` – request timeout in seconds (defaults to `30`).

@@ -13,10 +13,24 @@ frontend/.expo-shared/
 
 # Environment
 .env
-.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+frontend/.env
+!.env.example
+!backend/.env.example
+!frontend/.env.example
 
 # macOS
 .DS_Store
 
 # Logs
 *.log
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+backend/knowflow.db*

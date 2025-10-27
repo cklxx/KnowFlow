@@ -6,8 +6,30 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     environment:
+      # Server Configuration
       - BIND_ADDRESS=0.0.0.0:3000
       - DATABASE_URL=sqlite:///data/knowflow.db
+
+      # LLM Provider Configuration
+      - LLM_PROVIDER=${LLM_PROVIDER:-remote}
+      - LLM_TIMEOUT_SECS=${LLM_TIMEOUT_SECS:-30}
+
+      # Remote LLM API (火山引擎 Doubao / OpenAI-compatible)
+      - LLM_API_BASE=${LLM_API_BASE:-https://api.openai.com}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o-mini}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-4096}
+
+      # Ollama Configuration (if using local provider)
+      - OLLAMA_API_BASE=${OLLAMA_API_BASE:-http://127.0.0.1:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3}
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE}
+      - OLLAMA_TEMPERATURE=${OLLAMA_TEMPERATURE}
+      - OLLAMA_TOP_P=${OLLAMA_TOP_P}
+      - OLLAMA_REPEAT_PENALTY=${OLLAMA_REPEAT_PENALTY}
+      - OLLAMA_NUM_PREDICT=${OLLAMA_NUM_PREDICT}
+      - OLLAMA_NUM_CTX=${OLLAMA_NUM_CTX}
+      - OLLAMA_NUM_THREADS=${OLLAMA_NUM_THREADS}
     volumes:
       - backend-data:/data
     ports:
