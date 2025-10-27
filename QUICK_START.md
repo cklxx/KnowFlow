@@ -2,26 +2,24 @@
 
 ## 🚀 国内云服务器一键部署
 
-### 方式 1: 单条命令（最快）
+### 方式 1: 单条命令（YOUR_LLM_API_KEY + quick-deploy.sh）
 
-复制粘贴以下命令到您的服务器终端，一键完成所有部署：
+1. 准备好火山引擎（或兼容 OpenAI）API Key。
+2. 在服务器上执行以下单条命令：
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/cklxx/KnowFlow/main/quick-deploy.sh)
+git clone https://github.com/cklxx/KnowFlow.git \
+  && cd KnowFlow \
+  && LLM_API_KEY=YOUR_LLM_API_KEY ./quick-deploy.sh
 ```
 
-**该命令会自动完成：**
-- ✅ 检查系统依赖（Git、Docker、Docker Compose）
-- ✅ 克隆 KnowFlow 仓库
-- ✅ 配置环境变量（火山引擎豆包 API）
-- ✅ 构建 Docker 镜像
-- ✅ 启动所有服务
-- ✅ 健康检查验证
-- ✅ 显示访问地址
+将命令中的 `YOUR_LLM_API_KEY` 替换成你的真实密钥即可。脚本会自动：
+- ✅ 创建或更新 `.env`
+- ✅ 写入必需的 LLM 配置
+- ✅ 构建并启动 Docker 服务
 
-**前置要求：**
-- 已安装 Docker 和 Docker Compose
-- 服务器可访问 GitHub
+> 如需自定义部署目录或模型，可在命令前加入环境变量，例如：
+> `git clone https://github.com/cklxx/KnowFlow.git /data/knowflow && cd /data/knowflow && INSTALL_DIR=/data/knowflow LLM_MODEL=xxx LLM_API_KEY=... ./quick-deploy.sh`
 
 ---
 
@@ -34,7 +32,8 @@ bash <(curl -fsSL https://raw.githubusercontent.com/cklxx/KnowFlow/main/quick-de
 git clone https://github.com/cklxx/KnowFlow.git
 cd KnowFlow
 
-# 2. 运行快速部署脚本
+# 2. 设置环境变量并运行快速部署脚本（脚本会提示输入 API Key）
+export LLM_API_KEY=YOUR_LLM_API_KEY  # 可提前设置，也可以在脚本提示时输入
 ./quick-deploy.sh
 ```
 
@@ -53,7 +52,7 @@ LLM_PROVIDER=remote
 LLM_TIMEOUT_SECS=30
 LLM_API_BASE=https://ark.cn-beijing.volces.com/api/v3
 LLM_MODEL=ep-20250617155129-hfzl9
-LLM_API_KEY=c3d86f5e-2861-4eff-b05c-cb2e9fa04f42
+LLM_API_KEY=YOUR_LLM_API_KEY
 LLM_MAX_TOKENS=12288
 EOF
 
@@ -71,7 +70,7 @@ docker compose logs -f
 
 部署成功后，访问以下地址：
 
-- **前端应用**: http://YOUR_SERVER_IP:8080
+- **前端应用**: http://YOUR_SERVER_IP
 - **后端 API**: http://YOUR_SERVER_IP:3000
 - **健康检查**: http://YOUR_SERVER_IP:3000/health
 
