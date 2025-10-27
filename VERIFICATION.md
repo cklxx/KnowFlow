@@ -24,14 +24,14 @@ ls -la *.sh scripts/*.sh
 
 **预期输出**：所有 .sh 文件应有 `x` (可执行) 权限
 
-### 3. Docker Compose 配置验证
+### 3. Docker 环境验证
 
 ```bash
-# 验证配置语法
-docker compose config --quiet && echo "✅ 配置有效"
+# 验证 Docker 是否安装
+docker --version
 ```
 
-**预期输出**：`✅ 配置有效`
+**预期输出**：显示 Docker 版本信息
 
 ---
 
@@ -53,7 +53,8 @@ grep -E "LLM_API_KEY|LLM_MODEL|LLM_API_BASE" .env
 
 ```bash
 # 只构建，不启动
-docker compose build
+docker build -t knowflow-backend:latest -f backend/Dockerfile .
+docker build -t knowflow-frontend:latest --build-arg VITE_API_BASE_URL=http://localhost:3000 frontend
 
 # 验证镜像创建
 docker images | grep knowflow
@@ -65,13 +66,13 @@ docker images | grep knowflow
 
 ```bash
 # 启动服务
-docker compose up -d
+./deploy.sh
 
 # 等待服务启动
 sleep 10
 
 # 检查容器状态
-docker compose ps
+docker ps --filter "name=knowflow"
 ```
 
 **预期输出**：两个容器都应该是 `Up` 状态
@@ -86,7 +87,8 @@ curl -f http://localhost:3000/health
 curl -f http://localhost:8080
 
 # 查看日志
-docker compose logs --tail=50
+docker logs --tail=50 knowflow-backend
+docker logs --tail=50 knowflow-frontend
 ```
 
 **预期输出**：
@@ -114,7 +116,8 @@ curl http://localhost:3000/api/tree
 
 ```bash
 # 停止现有服务
-docker compose down -v
+docker rm -f knowflow-frontend knowflow-backend
+docker volume rm knowflow-backend-data
 
 # 运行部署脚本
 ./deploy.sh
@@ -205,10 +208,10 @@ curl -X POST http://localhost:3000/api/intelligence/card-drafts \
 
 ```bash
 # 停止服务
-docker compose down
+docker rm -f knowflow-frontend knowflow-backend
 
 # 删除数据卷
-docker compose down -v
+docker volume rm knowflow-backend-data
 
 # 删除镜像
 docker rmi $(docker images | grep knowflow | awk '{print $3}')
@@ -227,7 +230,6 @@ docker rmi $(docker images | grep knowflow | awk '{print $3}')
 
 - **操作系统**: _______________
 - **Docker 版本**: _______________
-- **Docker Compose 版本**: _______________
 - **测试日期**: _______________
 - **测试人员**: _______________
 

@@ -56,12 +56,36 @@ LLM_API_KEY=YOUR_LLM_API_KEY
 LLM_MAX_TOKENS=12288
 EOF
 
-# 3. 构建并启动
-docker compose up --build -d
+# 3. 构建生产镜像
+docker build -t knowflow-backend:latest -f backend/Dockerfile .
+docker build -t knowflow-frontend:latest --build-arg VITE_API_BASE_URL=http://localhost:3000 frontend
 
-# 4. 查看状态
-docker compose ps
-docker compose logs -f
+# 4. 准备 Docker 资源
+docker network create knowflow-net || true
+docker volume create knowflow-backend-data
+
+# 5. 启动服务
+docker run -d \
+  --name knowflow-backend \
+  --network knowflow-net \
+  --restart unless-stopped \
+  --env-file .env \
+  -e BIND_ADDRESS=0.0.0.0:3000 \
+  -e DATABASE_URL=sqlite:///data/knowflow.db \
+  -v knowflow-backend-data:/data \
+  -p 3000:3000 \
+  knowflow-backend:latest
+
+docker run -d \
+  --name knowflow-frontend \
+  --network knowflow-net \
+  --restart unless-stopped \
+  -p 8080:80 \
+  knowflow-frontend:latest
+
+# 6. 查看状态
+docker ps --filter "name=knowflow"
+docker logs -f knowflow-backend
 ```
 
 ---
@@ -70,7 +94,7 @@ docker compose logs -f
 
 部署成功后，访问以下地址：
 
-- **前端应用**: http://YOUR_SERVER_IP
+- **前端应用**: http://YOUR_SERVER_IP:8080
 - **后端 API**: http://YOUR_SERVER_IP:3000
 - **健康检查**: http://YOUR_SERVER_IP:3000/health
 
@@ -92,24 +116,27 @@ docker compose logs -f
 cd ~/KnowFlow
 
 # 查看实时日志
-docker compose logs -f
+docker logs -f knowflow-backend
+docker logs -f knowflow-frontend
 
 # 查看服务状态
-docker compose ps
+docker ps --filter "name=knowflow"
 
 # 重启服务
-docker compose restart
+docker restart knowflow-backend
+docker restart knowflow-frontend
 
 # 停止服务
-docker compose down
+docker rm -f knowflow-frontend knowflow-backend
 
 # 更新代码并重新部署
 git pull origin main
-docker compose up --build -d
+./deploy.sh
 
 # 完全清理并重建
-docker compose down -v
-docker compose up --build -d
+docker rm -f knowflow-frontend knowflow-backend
+docker volume rm knowflow-backend-data
+./deploy.sh
 ```
 
 ---
@@ -130,7 +157,6 @@ docker compose up --build -d
 
 ### 必需软件
 - **Docker**: 20.10+
-- **Docker Compose**: 2.0+
 - **Git**: 2.0+
 
 ---
@@ -161,7 +187,7 @@ echo \
 
 # 安装 Docker Engine
 sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io
 
 # 将当前用户添加到 docker 组
 sudo usermod -aG docker $USER
@@ -171,7 +197,6 @@ newgrp docker
 
 # 验证安装
 docker --version
-docker compose version
 ```
 
 ### CentOS/RHEL
@@ -186,7 +211,7 @@ sudo yum-config-manager \
     https://download.docker.com/linux/centos/docker-ce.repo
 
 # 安装 Docker Engine
-sudo yum install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+sudo yum install -y docker-ce docker-ce-cli containerd.io
 
 # 启动 Docker
 sudo systemctl start docker
@@ -200,7 +225,6 @@ newgrp docker
 
 # 验证安装
 docker --version
-docker compose version
 ```
 
 ---
@@ -264,23 +288,27 @@ sudo systemctl reload nginx
 sudo lsof -i :8080
 sudo lsof -i :3000
 
-# 修改 docker-compose.yml 中的端口映射
-vim docker-compose.yml
-# 将 "8080:80" 改为 "8090:80"
-# 将 "3000:3000" 改为 "3001:3000"
+# 修改 deploy.sh 或 quick-deploy.sh 中的端口映射
+vim deploy.sh  # 或 quick-deploy.sh
+# 将 "-p 8080:80" 或 "-p 80:80" 修改为新的前端端口，例如 "-p 8090:80"
+# 将 "-p 3000:3000" 修改为新的后端端口，例如 "-p 3001:3000"
+
+# 保存后重新部署
+./deploy.sh
 ```
 
 ### Q2: 服务启动失败怎么办？
 
 ```bash
 # 查看详细日志
-docker compose logs backend
-docker compose logs frontend
+docker logs knowflow-backend
+docker logs knowflow-frontend
 
 # 重新构建
-docker compose down
-docker compose build --no-cache
-docker compose up -d
+docker rm -f knowflow-frontend knowflow-backend
+docker build -t knowflow-backend:latest -f backend/Dockerfile .
+docker build -t knowflow-frontend:latest --build-arg VITE_API_BASE_URL=http://localhost:3000 frontend
+./deploy.sh
 ```
 
 ### Q3: 如何更新到最新版本？
@@ -288,8 +316,7 @@ docker compose up -d
 ```bash
 cd ~/KnowFlow
 git pull origin main
-docker compose down
-docker compose up --build -d
+./deploy.sh
 ```
 
 ### Q4: 如何修改 API 配置？
@@ -299,7 +326,7 @@ docker compose up --build -d
 vim .env
 
 # 重启服务
-docker compose restart backend
+./deploy.sh
 ```
 
 ---

@@ -39,7 +39,7 @@ cp .env.example .env
 
 KnowFlow 支持多种 LLM 提供商。您需要配置相应的环境变量。
 
-### 项目根目录 `.env` (用于 Docker Compose)
+### 项目根目录 `.env` (用于 Docker 部署)
 
 ```bash
 # LLM 提供商配置
@@ -171,7 +171,6 @@ VITE_API_BASE_URL=
 ### 前置要求
 
 - **Docker** 20.10+
-- **Docker Compose** 2.0+
 
 ### 方式 1: 使用部署脚本（推荐）
 
@@ -192,51 +191,77 @@ vim .env  # 编辑并填入您的 API 凭证
 - ✅ 健康检查
 - ✅ 显示访问地址
 
-### 方式 2: 手动 Docker Compose
+### 方式 2: 手动使用 Docker 命令
 
 ```bash
 # 1. 配置环境变量
 cp .env.example .env
 vim .env
 
-# 2. 构建并启动
-docker compose up --build -d
+# 2. 构建生产镜像
+docker build -t knowflow-backend:latest -f backend/Dockerfile .
+docker build -t knowflow-frontend:latest --build-arg VITE_API_BASE_URL=http://localhost:3000 frontend
 
-# 3. 查看日志
-docker compose logs -f
+# 3. 准备 Docker 资源
+docker network create knowflow-net || true
+docker volume create knowflow-backend-data
 
-# 4. 检查服务状态
-docker compose ps
+# 4. 启动容器
+docker run -d \
+  --name knowflow-backend \
+  --network knowflow-net \
+  --restart unless-stopped \
+  --env-file .env \
+  -e BIND_ADDRESS=0.0.0.0:3000 \
+  -e DATABASE_URL=sqlite:///data/knowflow.db \
+  -v knowflow-backend-data:/data \
+  -p 3000:3000 \
+  knowflow-backend:latest
 
-# 5. 停止服务
-docker compose down
+docker run -d \
+  --name knowflow-frontend \
+  --network knowflow-net \
+  --restart unless-stopped \
+  -p 8080:80 \
+  knowflow-frontend:latest
+
+# 5. 查看日志
+docker logs -f knowflow-backend
+docker logs -f knowflow-frontend
+
+# 6. 检查服务状态
+docker ps --filter "name=knowflow"
+
+# 7. 停止服务
+docker rm -f knowflow-frontend knowflow-backend
 ```
 
-### Docker Compose 常用命令
+### Docker 常用管理命令
 
 ```bash
-# 启动服务（后台运行）
-docker compose up -d
+# 后台运行部署脚本
+./deploy.sh
 
 # 查看日志
-docker compose logs -f
-docker compose logs backend    # 只看后端日志
-docker compose logs frontend   # 只看前端日志
+docker logs -f knowflow-backend
+docker logs -f knowflow-frontend
 
 # 重启服务
-docker compose restart
+docker restart knowflow-backend
+docker restart knowflow-frontend
 
 # 停止服务
-docker compose down
+docker rm -f knowflow-frontend knowflow-backend
 
-# 停止并删除数据卷
-docker compose down -v
+# 清理数据卷
+docker volume rm knowflow-backend-data
 
 # 重新构建镜像
-docker compose build --no-cache
+docker build -t knowflow-backend:latest -f backend/Dockerfile .
+docker build -t knowflow-frontend:latest --build-arg VITE_API_BASE_URL=http://localhost:3000 frontend
 
 # 查看服务状态
-docker compose ps
+docker ps --filter "name=knowflow"
 ```
 
 ### 生产环境端口
@@ -249,16 +274,16 @@ docker compose ps
 数据库文件存储在 Docker 卷中：
 ```yaml
 volumes:
-  backend-data:  # 包含 SQLite 数据库
+  knowflow-backend-data:  # 包含 SQLite 数据库
 ```
 
 要备份数据库：
 ```bash
 # 查找卷的实际路径
-docker volume inspect knowflow_backend-data
+docker volume inspect knowflow-backend-data
 
 # 或者直接从容器中复制
-docker compose exec backend cat /data/knowflow.db > backup.db
+docker exec knowflow-backend cat /data/knowflow.db > backup.db
 ```
 
 ---
@@ -267,7 +292,7 @@ docker compose exec backend cat /data/knowflow.db > backup.db
 
 ### 问题 1: 后端启动失败
 
-**症状**: `docker compose logs backend` 显示错误
+**症状**: `docker logs knowflow-backend` 显示错误
 
 **解决方案**:
 ```bash
@@ -279,8 +304,8 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
   https://your-api-base/models
 
 # 重新构建并启动
-docker compose down
-docker compose up --build
+docker rm -f knowflow-frontend knowflow-backend
+./deploy.sh
 ```
 
 ### 问题 2: 前端无法连接后端
@@ -293,10 +318,10 @@ docker compose up --build
 curl http://localhost:3000/health
 
 # 2. 检查 Docker 网络
-docker compose ps
+docker ps --filter "name=knowflow"
 
 # 3. 查看后端日志
-docker compose logs backend
+docker logs knowflow-backend
 
 # 4. 检查防火墙设置
 ```
@@ -317,7 +342,7 @@ curl -X POST https://your-api-base/chat/completions \
   -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"test"}]}'
 
 # 3. 检查后端日志中的详细错误
-docker compose logs backend | grep -i error
+docker logs knowflow-backend | grep -i error
 ```
 
 ### 问题 4: 数据库权限错误
@@ -327,15 +352,16 @@ docker compose logs backend | grep -i error
 **解决方案**:
 ```bash
 # 1. 检查卷权限
-docker compose exec backend ls -la /data
+docker exec knowflow-backend ls -la /data
 
 # 2. 重新创建卷
-docker compose down -v
-docker compose up -d
+docker rm -f knowflow-frontend knowflow-backend
+docker volume rm knowflow-backend-data
+./deploy.sh
 
 # 3. 手动创建数据库目录
-docker compose exec backend mkdir -p /data
-docker compose exec backend chmod 755 /data
+docker exec knowflow-backend mkdir -p /data
+docker exec knowflow-backend chmod 755 /data
 ```
 
 ### 问题 5: 端口已被占用
@@ -351,7 +377,7 @@ lsof -i :8080
 # 杀死占用端口的进程
 kill -9 <PID>
 
-# 或者修改 docker-compose.yml 中的端口映射
+# 或者修改 deploy.sh/quick-deploy.sh 中的端口映射
 ```
 
 ---
@@ -398,7 +424,7 @@ kill -9 <PID>
 4. **定期备份数据**
    ```bash
    # 自动备份脚本示例
-   docker compose exec backend cat /data/knowflow.db > backup-$(date +%Y%m%d).db
+   docker exec knowflow-backend cat /data/knowflow.db > backup-$(date +%Y%m%d).db
    ```
 
 ---
