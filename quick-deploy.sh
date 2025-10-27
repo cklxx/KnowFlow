@@ -12,10 +12,21 @@ echo ""
 # 配置变量
 REPO_URL="https://github.com/cklxx/KnowFlow.git"
 INSTALL_DIR="$HOME/KnowFlow"
-LLM_API_BASE="https://ark.cn-beijing.volces.com/api/v3"
-LLM_MODEL="ep-20250617155129-hfzl9"
-LLM_API_KEY="c3d86f5e-2861-4eff-b05c-cb2e9fa04f42"
-LLM_MAX_TOKENS="12288"
+LLM_API_BASE="${LLM_API_BASE:-https://ark.cn-beijing.volces.com/api/v3}"
+LLM_MODEL="${LLM_MODEL:-ep-20250617155129-hfzl9}"
+LLM_MAX_TOKENS="${LLM_MAX_TOKENS:-12288}"
+
+# Read API key from environment or prompt the user securely
+if [ -z "${LLM_API_KEY:-}" ]; then
+    echo "🔐 检测到未配置 LLM_API_KEY"
+    read -rsp "请输入火山引擎（或兼容 OpenAI）API Key: " LLM_API_KEY
+    echo
+fi
+
+if [ -z "${LLM_API_KEY:-}" ]; then
+    echo "❌ 未提供 API Key，部署终止"
+    exit 1
+fi
 
 # 检查依赖
 echo "📋 检查系统依赖..."
@@ -149,7 +160,7 @@ fi
 RETRY_COUNT=0
 echo -n "   检查前端服务"
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if curl -sf http://localhost:8080 > /dev/null 2>&1; then
+    if curl -sf http://localhost > /dev/null 2>&1; then
         echo " ✅"
         break
     fi
@@ -172,7 +183,7 @@ echo "║   🎉 KnowFlow 部署成功！                                  ║"
 echo "╚═══════════════════════════════════════════════════════════╝"
 echo ""
 echo "📱 应用访问地址："
-echo "   前端: http://localhost:8080"
+echo "   前端: http://localhost"
 echo "   后端: http://localhost:3000"
 echo ""
 
@@ -180,7 +191,7 @@ echo ""
 SERVER_IP=$(hostname -I | awk '{print $1}' 2>/dev/null || echo "YOUR_SERVER_IP")
 if [ "$SERVER_IP" != "YOUR_SERVER_IP" ]; then
     echo "🌐 外网访问地址（如果服务器有公网 IP）："
-    echo "   前端: http://$SERVER_IP:8080"
+    echo "   前端: http://$SERVER_IP"
     echo "   后端: http://$SERVER_IP:3000"
     echo ""
 fi
