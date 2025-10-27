@@ -1,1 +1,0 @@
-export { IntelligenceChat } from './IntelligenceChat';

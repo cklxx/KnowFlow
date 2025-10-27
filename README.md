@@ -5,15 +5,15 @@ Early-stage implementation scaffold for KnowFlow v0, aligning with the product +
 ## Project Structure
 
 - `backend/`: Rust workspace (Axum) with API service skeleton.
-- `frontend/`: Expo React Native app with Expo Router, design tokens, and shared providers.
+- `frontend/`: React web application built with Vite, TanStack Query, Zustand, and Tailwind CSS.
 - `知进（know_flow）_产品_技术设计_v_0.md`: Source product/tech design reference (Chinese).
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ with npm
-- Rust toolchain (>= 1.80) with `cargo`
+- Node.js 18+ with npm (for React web frontend)
+- Rust toolchain (>= 1.80) with `cargo` (for backend API)
 
 ### Frontend
 
@@ -22,12 +22,17 @@ cd frontend
 npm install
 npm run lint
 npm run typecheck
-npm run start
+npm run dev
 ```
 
-The app bootstraps Expo Router with tab navigation and a theme-aware provider stack. Further feature work lives under `src/features` following the roadmap milestones.
+The app is a modern React single-page application built with:
+- **Vite** for fast development and optimized production builds
+- **React Router** for client-side routing
+- **TanStack Query** for server state management and caching
+- **Zustand** for lightweight local state management
+- **Tailwind CSS** for utility-first styling
 
-The More tab now 提供导入工作台，可批量粘贴链接或笔记、调用 LLM 聚合主题并筛选生成的卡片草稿，再写入已选方向。
+The frontend provides a comprehensive workspace for managing directions, skill points, and memory cards, with AI-powered card generation and import capabilities.
 
 ### Backend
 
@@ -64,7 +69,7 @@ By default the server reads `DATABASE_URL` (defaults to `sqlite://./knowflow.db`
 
 ### One-command dev workflows
 
-To boot both the backend and the Expo web app with a single command, use the helper scripts under `scripts/`:
+To boot both the backend and the React web app with a single command, use the helper scripts under `scripts/`:
 
 ```bash
 # start backend + frontend together
@@ -75,7 +80,7 @@ To boot both the backend and the Expo web app with a single command, use the hel
 ./scripts/start-frontend.sh
 ```
 
-The frontend script installs dependencies on first run and respects `WEB_PORT` (default `8081`) and `EXPO_PUBLIC_API_BASE_URL` (default `http://localhost:3000`).
+The frontend script installs dependencies on first run and starts the Vite development server on port `5173` (default), connecting to the backend API at `http://localhost:3000`.
 
 ### Docker Compose deployment
 
@@ -85,7 +90,7 @@ Build and run both services with Docker by using the provided `docker-compose.ym
 docker compose up --build
 ```
 
-The stack exposes the backend on `http://localhost:3000` and serves the static web build on `http://localhost:8080`. Requests from the web UI are proxied to the API, so no additional environment tweaks are required.
+The stack exposes the backend API on `http://localhost:3000` and serves the production-built React application via Nginx on `http://localhost:8080`. The frontend build is optimized with Vite and configured to proxy API requests to the backend service.
 
 LLM-driven generation is optional. Configure the following environment variables to enable different providers:
 
@@ -110,15 +115,17 @@ To leverage your own fine-tuned checkpoints, convert them to GGUF and `ollama cr
 
 ## Tooling
 
-- ESLint + Prettier configured for TypeScript React Native
-- React Query + Zustand wired for future state/data needs
-- Query client and theme provider wrapped at the app root
+- **Frontend**: ESLint + Prettier configured for TypeScript React, Vite for blazing-fast HMR
+- **State Management**: TanStack Query for server state caching, Zustand for client state
+- **Styling**: Tailwind CSS for utility-first responsive design
+- **Type Safety**: Full TypeScript coverage across frontend and backend interfaces
 
 ## Next Steps
 
 1. Flesh out backend repositories, domain models, and OpenAPI surface.
-2. Extend import and sync capabilities (Share Sheet, `/sync` delta API, background refresh).
+2. Extend import and sync capabilities (`/sync` delta API, background refresh, browser extension support).
 3. Establish richer scheduling analytics (KV、UDR 趋势、到期提醒策略)。
+4. Add progressive web app (PWA) capabilities for offline support and installability.
 
 ## TODO Completion & Verification Plan
 
@@ -139,17 +146,20 @@ Follow this verification checklist before delivery:
 
 1. **Static checks**
    - Backend: `cargo check --manifest-path backend/services/api/Cargo.toml`
-   - Frontend: `npm run lint --prefix frontend`
-2. **Mock end-to-end pass**
-   - Launch Expo development server: `npm run dev --prefix frontend`
-   - With MSW enabled, exercise direction/skill/card CRUD in the Tree Workspace and ensure snapshot counters refresh immediately.
+   - Frontend: `npm run lint --prefix frontend` and `npm run typecheck --prefix frontend`
+2. **Development workflow**
+   - Launch Vite development server: `npm run dev --prefix frontend`
+   - Access the application at `http://localhost:5173`
+   - Exercise direction/skill/card CRUD in the Tree Workspace and ensure snapshot counters refresh immediately.
    - Trigger the refresh button in the overview to fetch the latest tree snapshot after mutations.
-   - Confirm the “上次更新” timestamp reflects the most recent fetch after manual refreshes，and note the warning state if the snapshot is older than five minutes.
+   - Confirm the "上次更新" timestamp reflects the most recent fetch after manual refreshes，and note the warning state if the snapshot is older than five minutes.
    - Observe the inline spinner beside the timestamp while the workspace refetches data.
    - Toggle skill-point filters in the memory card manager and confirm new cards respect the active filter.
 3. **Intelligence flow**
-   - Within AI Draft Studio, send prompts, observe streaming responses in GiftedChat, and import selected drafts into the chosen direction.
+   - Within AI Draft Studio, send prompts, observe responses, and import selected drafts into the chosen direction.
 4. **Settings export**
    - Trigger an export from the Settings workspace and validate the JSON payload includes `directions`, `skill_points`, `cards`, `evidence`, and `card_tags` arrays.
-5. **Automated end-to-end tests**
-   - Execute `npm run test:e2e --prefix frontend` to run the mocked Jest suite that covers onboarding, tree management, settings export, vault, and import workflows.
+5. **Production build**
+   - Execute `npm run build --prefix frontend` to create optimized production assets
+   - Preview the build with `npm run preview --prefix frontend`
+   - Verify all features work correctly in the production build

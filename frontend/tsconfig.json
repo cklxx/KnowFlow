@@ -1,30 +1,51 @@
 {
-  "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true,
-    "baseUrl": "./",
-    "paths": {
-      "@/*": [
-        "src/*"
-      ],
-      "@api/*": [
-        "src/lib/api/*"
-      ],
-      "@api": [
-        "src/lib/api/index"
-      ]
-    },
+    /* Language and Environment */
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
-    "types": [
-      "react",
-      "react-native",
-      "expo-router",
-      "node"
-    ]
+
+    /* Modules */
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+
+    /* Type Checking - Strict Mode */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": false,
+
+    /* Emit */
+    "noEmit": true,
+    "isolatedModules": true,
+
+    /* Interop Constraints */
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Skip Library Checks */
+    "skipLibCheck": true,
+
+    /* Path Aliases - Matching Expo frontend convention */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@api": ["./src/api/index.ts"],
+      "@api/*": ["./src/api/*"],
+      "@components/*": ["./src/components/*"],
+      "@features/*": ["./src/features/*"],
+      "@hooks/*": ["./src/hooks/*"],
+      "@pages/*": ["./src/pages/*"],
+      "@store/*": ["./src/store/*"],
+      "@types/*": ["./src/types/*"],
+      "@utils/*": ["./src/utils/*"]
+    }
   },
-  "include": [
-    "app",
-    "src",
-    "app.d.ts"
-  ]
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
 }

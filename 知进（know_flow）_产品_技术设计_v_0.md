@@ -279,16 +279,57 @@ paths:
 ---
 
 ## 9. 前后端架构
-- **前端**：Expo + React Native。使用 React Query 拉取方向、技能点、卡片、树快照与智能助理 API；UI 组件仅包含卡片、文本、按钮等基础元素。
-- **后端**：Rust + Axum + SQLite。实现方向、技能点、卡片、树快照、智能助理草稿、导入预览等 REST 接口。
-- **状态管理**：React Query 缓存 + 轻量型 Toast 提示；无需额外全局状态。
+
+### 前端架构
+- **框架**：React 18 + Vite（CSR 客户端渲染架构）
+- **路由**：React Router v6 实现单页应用导航
+- **状态管理**：
+  - TanStack Query (React Query) - 服务端状态管理与缓存
+  - Zustand - 轻量级客户端状态管理
+- **样式系统**：Tailwind CSS 提供 utility-first 响应式设计
+- **构建工具**：Vite 提供快速的开发服务器与优化的生产构建
+- **类型安全**：TypeScript 全覆盖，与后端 API 类型定义对齐
+- **UI 组件**：基于 Web 标准的组件库，包含卡片、表单、按钮等基础元素
+
+### 后端架构
+- **框架**：Rust + Axum
+- **数据库**：SQLite 持久化存储
+- **API 接口**：RESTful API 实现方向、技能点、卡片、树快照、智能助理草稿、导入预览等功能
+
+### 部署架构
+- **开发环境**：
+  - 前端：Vite dev server (端口 5173)
+  - 后端：Axum server (端口 3000)
+- **生产环境**：
+  - 前端：Nginx 提供静态资源服务 (端口 8080)
+  - 后端：Axum API server (端口 3000)
+  - 容器化：Docker Compose 编排前后端服务
 
 ---
 
 ## 10. 测试与验收
-- 单元/集成：后端接口保持编译与基本单测通过。
-- 前端验收：在 Tree 页面完成方向、技能点、卡片的增删改，确认状态实时更新且概览同步变化；在 AI Draft Studio 生成草稿并写入方向。
-- Lint：`npm run lint` 保持通过。
+
+### 测试策略
+- **后端测试**：
+  - 单元测试：验证核心业务逻辑与数据仓储层
+  - 集成测试：验证 API 接口与数据库交互
+  - 编译检查：`cargo check` 确保类型安全
+- **前端测试**：
+  - 类型检查：`npm run typecheck` 验证 TypeScript 类型正确性
+  - 代码质量：`npm run lint` 确保代码规范
+  - 手动验收：在浏览器中测试完整用户流程
+- **端到端测试**：
+  - 开发环境：通过 Vite dev server 验证完整功能
+  - 生产环境：通过 `npm run build` + `npm run preview` 验证构建产物
+
+### 验收清单
+1. **方向管理**：在 Tree 页面创建、编辑、删除方向，确认状态实时更新且概览同步变化
+2. **技能点管理**：在方向内增删改技能点，验证实时刷新与掌握等级调整
+3. **卡片管理**：基于方向与可选技能点创建、编辑、删除卡片，支持技能点筛选
+4. **智能助理**：在 AI Draft Studio 生成草稿并写入方向
+5. **数据导出**：从设置页触发导出，验证 JSON 数据完整性
+6. **树快照刷新**：验证手动刷新与自动刷新机制
+7. **响应式设计**：在不同屏幕尺寸下验证 UI 适配性
 
 ### TODO 完成列表
 - [x] **方向管理**：创建、编辑、删除方向，保持阶段与季度目标字段同步。
@@ -305,18 +346,25 @@ paths:
 ### 验证方案
 1. **静态检查**
    - 后端：`cargo check --manifest-path backend/services/api/Cargo.toml`
-   - 前端：`npm run lint --prefix frontend`
-2. **Mock 环境联调**
-   - 运行前端开发服务：`npm run dev --prefix frontend`
-   - 默认启用 MSW，创建/更新/删除方向、技能点、卡片，观察 Tree Workspace 与列表联动。
-   - 在 MemoryCardList 中切换技能点筛选，验证新增卡片继承当前筛选状态。
-   - 操作完成后点击概览区刷新按钮，确认快照重新获取并反映最新数据。
-   - 刷新后检查“上次更新”时间戳是否同步变化，并在快照超过 5 分钟未刷新时看到警示提示。
-   - 观察刷新期间时间戳旁的行内加载指示。
+   - 前端：`npm run lint --prefix frontend` 和 `npm run typecheck --prefix frontend`
+2. **开发环境验证**
+   - 运行 Vite 开发服务器：`npm run dev --prefix frontend`
+   - 在浏览器访问 `http://localhost:5173`
+   - 创建/更新/删除方向、技能点、卡片，观察 Tree Workspace 与列表联动
+   - 在 MemoryCardList 中切换技能点筛选，验证新增卡片继承当前筛选状态
+   - 操作完成后点击概览区刷新按钮，确认快照重新获取并反映最新数据
+   - 刷新后检查"上次更新"时间戳是否同步变化，并在快照超过 5 分钟未刷新时看到警示提示
+   - 观察刷新期间时间戳旁的行内加载指示
 3. **智能助理链路**
-   - 打开 AI Draft Studio，输入素材触发草稿生成，确认 GiftedChat 显示消息流。
-   - 勾选草稿并写入方向，回到 Tree Workspace 检查卡片出现并匹配筛选。
+   - 打开 AI Draft Studio，输入素材触发草稿生成，确认显示响应消息流
+   - 勾选草稿并写入方向，回到 Tree Workspace 检查卡片出现并匹配筛选
 4. **设置导出**
-   - 打开设置页面触发导出，确认导出的 JSON 包含 directions、skill_points、cards、evidence、card_tags 五类集合。
-5. **自动化端到端回归**
-   - 执行 `npm run test:e2e --prefix frontend`，验证基于 Mock 的 Jest 套件覆盖 Onboarding、Tree Workspace、Settings、Import 等关键流程均能通过。
+   - 打开设置页面触发导出，确认导出的 JSON 包含 directions、skill_points、cards、evidence、card_tags 五类集合
+5. **生产构建验证**
+   - 执行 `npm run build --prefix frontend` 创建优化后的生产构建
+   - 执行 `npm run preview --prefix frontend` 预览生产版本
+   - 验证所有功能在生产环境下正常工作
+6. **Docker 部署验证**
+   - 运行 `docker compose up --build` 启动完整服务栈
+   - 访问 `http://localhost:8080` 验证前端应用
+   - 验证前端与后端 API 集成正常
