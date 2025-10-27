@@ -89,7 +89,7 @@ The frontend script installs dependencies on first run and starts the Vite devel
 Use the provided deployment script for a guided setup:
 
 ```bash
-./scripts/deploy.sh
+./deploy.sh
 ```
 
 This script will:

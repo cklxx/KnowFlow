@@ -26,7 +26,7 @@ cp .env.example .env
 # 编辑 .env 文件，填入您的 API 密钥
 
 # 3. 一键部署
-./scripts/deploy.sh
+./deploy.sh
 ```
 
 部署完成后访问：
@@ -181,7 +181,7 @@ cp .env.example .env
 vim .env  # 编辑并填入您的 API 凭证
 
 # 2. 运行部署脚本
-./scripts/deploy.sh
+./deploy.sh
 ```
 
 部署脚本会自动：
