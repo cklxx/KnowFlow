@@ -6,18 +6,10 @@ import type { TreeSnapshot } from '../types/api';
  */
 export const treeApi = {
   /**
-   * Get tree snapshot for a direction
+   * Get the latest tree snapshot across all directions
    */
-  getSnapshot: async (directionId: string): Promise<TreeSnapshot> => {
-    const response = await apiClient.get<TreeSnapshot>(`/tree/${directionId}`);
-    return response.data;
-  },
-
-  /**
-   * Get all tree snapshots
-   */
-  getAllSnapshots: async (): Promise<TreeSnapshot[]> => {
-    const response = await apiClient.get<TreeSnapshot[]>('/tree');
+  getSnapshot: async (): Promise<TreeSnapshot> => {
+    const response = await apiClient.get<TreeSnapshot>('/tree');
     return response.data;
   },
 };

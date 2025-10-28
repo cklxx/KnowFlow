@@ -1,50 +1,89 @@
-// Core API types based on backend domain models
+// Core API types based on backend domain models aligned with the PRD
 
 // Direction Types
+export type DirectionStage = 'explore' | 'shape' | 'attack' | 'stabilize';
+
 export interface Direction {
   id: string;
   name: string;
-  description: string | null;
+  stage: DirectionStage;
+  quarterly_goal: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreateDirectionRequest {
   name: string;
-  description?: string;
+  stage: DirectionStage;
+  quarterly_goal?: string | null;
 }
 
 export interface UpdateDirectionRequest {
   name?: string;
-  description?: string;
+  stage?: DirectionStage;
+  quarterly_goal?: string | null;
+}
+
+// Skill Point Types
+export type SkillLevel = 'unknown' | 'emerging' | 'working' | 'fluent';
+
+export interface SkillPoint {
+  id: string;
+  direction_id: string;
+  name: string;
+  summary: string | null;
+  level: SkillLevel;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateSkillPointRequest {
+  direction_id: string;
+  name: string;
+  summary?: string | null;
+  level?: SkillLevel;
+}
+
+export interface UpdateSkillPointRequest {
+  name?: string;
+  summary?: string | null;
+  level?: SkillLevel;
 }
 
 // Memory Card Types
+export type CardType = 'fact' | 'concept' | 'procedure' | 'claim';
+
 export interface MemoryCard {
   id: string;
   direction_id: string;
-  question: string;
-  answer: string;
-  evidence_ids: string[];
+  skill_point_id: string | null;
+  title: string;
+  body: string;
+  card_type: CardType;
   created_at: string;
   updated_at: string;
-  next_review_at: string | null;
-  review_count: number;
-  ease_factor: number;
-  interval_days: number;
 }
 
 export interface CreateCardRequest {
   direction_id: string;
-  question: string;
-  answer: string;
-  evidence_ids?: string[];
+  title: string;
+  body: string;
+  card_type: CardType;
+  skill_point_id?: string | null;
 }
 
 export interface UpdateCardRequest {
-  question?: string;
-  answer?: string;
-  evidence_ids?: string[];
+  title?: string;
+  body?: string;
+  card_type?: CardType;
+  skill_point_id?: string | null;
+}
+
+// Generic API error shape
+export interface ApiError {
+  message: string;
+  code?: string;
+  details?: Record<string, unknown>;
 }
 
 // Evidence Types
@@ -60,31 +99,14 @@ export interface CreateEvidenceRequest {
   source_url?: string;
 }
 
-// Skill Point Types
-export interface SkillPoint {
-  id: string;
-  direction_id: string;
-  name: string;
-  description: string | null;
-  parent_id: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateSkillPointRequest {
-  direction_id: string;
-  name: string;
-  description?: string;
-  parent_id?: string;
-}
-
 // Today Workout Types
 export interface WorkoutCard {
   id: string;
   direction_id: string;
-  question: string;
-  answer: string;
-  evidence_ids: string[];
+  direction_name: string;
+  title: string;
+  body: string;
+  card_type: CardType;
 }
 
 export interface WorkoutResponse {
@@ -97,10 +119,26 @@ export interface SubmitReviewRequest {
   quality: number; // 0-5 scale
 }
 
+// Progress Types
+export interface ProgressDirectionMetric {
+  direction_id: string;
+  direction_name: string;
+  reviewed_today: number;
+  due_cards: number;
+}
+
+export interface ProgressResponse {
+  streak: number;
+  cards_reviewed_today: number;
+  total_cards: number;
+  direction_metrics: ProgressDirectionMetric[];
+}
+
 // Intelligence/AI Types
 export interface CardDraft {
-  question: string;
-  answer: string;
+  title: string;
+  body: string;
+  card_type?: CardType;
   evidence_content?: string;
 }
 
@@ -131,20 +169,35 @@ export interface SearchResult {
 }
 
 // Tree Types
-export interface TreeNode {
+export interface TreeCardSummary {
   id: string;
-  name: string;
-  description: string | null;
-  parent_id: string | null;
+  skill_point_id: string | null;
+  title: string;
+  body: string;
+  card_type: CardType;
+}
+
+export interface TreeSkillPointBranch {
+  skill_point: SkillPoint;
   card_count: number;
-  children: TreeNode[];
+  cards: TreeCardSummary[];
+}
+
+export interface TreeDirectionMetrics {
+  skill_point_count: number;
+  card_count: number;
+}
+
+export interface TreeDirectionBranch {
+  direction: Direction;
+  metrics: TreeDirectionMetrics;
+  skill_points: TreeSkillPointBranch[];
+  orphan_cards: TreeCardSummary[];
 }
 
 export interface TreeSnapshot {
-  direction_id: string;
-  direction_name: string;
-  root_nodes: TreeNode[];
-  total_cards: number;
+  directions: TreeDirectionBranch[];
+  generated_at: string;
 }
 
 // Vault Types
@@ -152,8 +205,9 @@ export interface VaultCard {
   id: string;
   direction_id: string;
   direction_name: string;
-  question: string;
-  answer: string;
+  title: string;
+  body: string;
+  card_type: CardType;
   created_at: string;
   next_review_at: string | null;
   review_count: number;
@@ -174,6 +228,26 @@ export interface VaultFilter {
   sort_order?: 'asc' | 'desc';
 }
 
+// Settings Types
+export interface NotificationPreferences {
+  email_reviews: boolean;
+  email_digest: boolean;
+  push_reviews: boolean;
+  weekly_summary: boolean;
+}
+
+export interface SettingsExport {
+  exported_at: string;
+  directions: Direction[];
+  skill_points: SkillPoint[];
+  cards: MemoryCard[];
+  evidence: Evidence[];
+  card_tags: Array<{
+    id: string;
+    name: string;
+  }>;
+}
+
 // Import Types
 export interface ImportPreviewRequest {
   direction_id: string;
@@ -191,62 +265,10 @@ export interface ImportPreviewResponse {
 export interface ImportConfirmRequest {
   direction_id: string;
   cards: Array<{
-    question: string;
-    answer: string;
+    title: string;
+    body: string;
+    card_type?: CardType;
     evidence_content?: string;
+    skill_point_id?: string | null;
   }>;
-}
-
-// Onboarding Types
-export interface OnboardingBootstrapResponse {
-  direction_id: string;
-  sample_cards: MemoryCard[];
-}
-
-// Progress Types
-export interface ProgressStats {
-  direction_id: string;
-  direction_name: string;
-  total_cards: number;
-  cards_due_today: number;
-  cards_reviewed_today: number;
-  total_reviews: number;
-  average_ease_factor: number;
-  mastery_percentage: number;
-}
-
-export interface ProgressResponse {
-  stats: ProgressStats[];
-  overall_cards: number;
-  overall_reviews: number;
-}
-
-// Settings Types
-export interface NotificationPreferences {
-  enabled: boolean;
-  daily_reminder_time: string | null;
-  reminder_days: number[];
-}
-
-export interface SettingsExport {
-  directions: Direction[];
-  cards: MemoryCard[];
-  evidence: Evidence[];
-  skill_points: SkillPoint[];
-  exported_at: string;
-}
-
-// Common API Response Types
-export interface ApiError {
-  message: string;
-  code?: string;
-  details?: unknown;
-}
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  page: number;
-  page_size: number;
-  has_more: boolean;
 }

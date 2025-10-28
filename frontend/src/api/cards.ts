@@ -15,6 +15,14 @@ export const cardsApi = {
   },
 
   /**
+   * List cards under a direction using the nested resource path
+   */
+  listByDirection: async (directionId: string): Promise<MemoryCard[]> => {
+    const response = await apiClient.get<MemoryCard[]>(`/directions/${directionId}/cards`);
+    return response.data;
+  },
+
+  /**
    * Get a single card by ID
    */
   getById: async (id: string): Promise<MemoryCard> => {
