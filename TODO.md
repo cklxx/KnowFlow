@@ -1,9 +1,16 @@
 # TODO
 
 ## 待完成
-- [ ] （暂无待办）
+- [ ] 聊天助手支持流式响应与会话持久化
+- [ ] 练习打卡视图优化，支持批量调度质量标签
+- [ ] AI 草稿批量导入时允许选择关联的技能点
 
 ## 已完成
+
+### KnowFlow 树形工作台 (Tree Workspace)
+- [x] 将 TreePage 拆分为模块化组件（方向侧边栏、技能点、卡片、AI 草稿与复习面板）
+- [x] 梳理整体验证流程，统一方向/技能/卡片的 CRUD 操作与 React Query 刷新策略
+- [x] 在关键模块补充 TODO 标记，提示后续的流式聊天与验证体验集成
 
 ### 前端架构迁移 (Frontend Architecture Migration)
 - [x] **React CSR 重构** —— 将前端从 Expo React Native 完全迁移到 React + Vite 的 CSR (Client-Side Rendering) 架构，使用 React Router 实现路由，TanStack Query 管理服务端状态，Zustand 处理客户端状态，Tailwind CSS 提供样式系统。

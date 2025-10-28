@@ -11,6 +11,7 @@ export { apiClient, createApiClient } from './client';
 // Export all API endpoint modules
 export { cardsApi } from './cards';
 export { directionsApi } from './directions';
+export { skillPointsApi } from './skillPoints';
 export { intelligenceApi } from './intelligence';
 export { importApi } from './import';
 export { progressApi } from './progress';
