@@ -1,370 +1,173 @@
-# 知进（KnowFlow）— 最小产品设计
+# AI 小耳朵 — V1 产品蓝图（语音 + 文字双通道）
 
-> 以最少的交互维护“方向 → 技能点 → 记忆卡片”结构，专注在日常整理与梳理；并保留 AI 助理的核心 React 执行流。
+> “每天 10 分钟，不焦虑地跟上 AI。”
 
 ---
 
 ## 0. 目录
-1. 产品概述
-2. 核心对象与约束
-3. 核心用例
-4. 页面信息架构
-5. 最小界面与交互
-6. 智能助理执行流（React）
-7. 数据模型（TypeScript）
-8. API 设计（OpenAPI 片段）
-9. 前后端架构
-10. 测试与验收
+1. 产品目标与用户困境
+2. 产品定位与品牌要素
+3. 设计原则
+4. 关键使用场景
+5. 信息架构与核心模块
+6. 「老婆模式」差异化能力
+7. 语音 + 文字双通道体验
+8. 信息获取与内容生产流程
+9. 技术实现概览（火山引擎一键配置）
+10. 后续演进方向
+11. 一句话对她说
 
 ---
 
-## 1. 产品概述
-**定位**：单人知识整理工具，只保留最必要的功能——维护方向树、记录技能点、编辑记忆卡片，同时继续提供一键生成卡片草稿的智能助理。
-
-**目标**：
-- 几分钟内创建方向与技能点。
-- 在同一界面完成卡片的创建、更新与删除。
-- 提供方向维度的概览，包含方向、技能点与卡片数量。
-- 使用智能助理快速生成卡片草稿，再落盘到方向树。
-
-**非目标**：不涉及搜索、训练计划、进度统计等额外流程。
+## 1. 产品目标与用户困境
+- **目标用户**：对 AI 感兴趣但阅读能力有限、容易被复杂资讯吓到的普通人（示例：你的伴侣）。
+- **核心困境**：
+  - 阅读障碍导致无法长时间阅读长文，容易分心。
+  - AI 资讯太快、太多、太专业，并混杂大量标题党与英文长文。
+  - 缺乏“和我有什么关系”的解释，容易感到被时代抛下。
+- **产品目标**：用耳朵 + 眼睛，在 5–10 分钟内帮助她知道最近 AI 发生了什么、这些变化与生活/工作/孩子/未来有何关联，并获得安全感与参与感。
+- **非目标**：不追求全面、及时的行业深度资讯；不做技术学习平台或专业投资建议。
 
 ---
 
-## 2. 核心对象与约束
-- **Direction（方向）**：长期关注的主题，限定名称、阶段与季度目标。
-- **SkillPoint（技能点）**：方向下可量化的能力节点，记录名称、摘要与掌握等级。
-- **MemoryCard（记忆卡片）**：最小知识条目，仅包含标题、正文、类型，可选关联一个技能点。
-
-约束：
-- 所有卡片必须属于某个方向，技能点为可选归属。
-
----
-
-## 3. 核心用例
-1. 新建方向，设置阶段与季度目标。
-2. 在方向内维护技能点：创建、重命名、调整掌握等级、删除。
-3. 在方向内管理卡片：创建、编辑正文与类型、删除。
-4. 浏览方向树概览，按方向查看技能点与已关联/未关联的卡片。
-5. 使用智能助理生成卡片草稿，筛选后写入方向。
+## 2. 产品定位与品牌要素
+- **定位**：一个“用耳朵跟上 AI 世界”的日常语音/文字小助手。
+- **名称示例**：
+  - AI 小耳朵
+  - AI 一起听
+  - 不焦虑 AI 日报
+- **一句话 Slogan**：每天 10 分钟，不焦虑地跟上 AI。
+- **品牌调性**：温柔、可信赖、像懂行的朋友在轻松聊天，既有声音陪伴也有大字摘要可复习。
 
 ---
 
-## 4. 页面信息架构
-- 单一入口：**Tree 页面**。
-  - 顶部概览：方向数量、技能点数量、卡片数量。
-  - 左侧列表：所有方向摘要，支持选中切换。
-  - 右侧详情：展示方向信息、技能点卡片分布、未归属卡片。
-  - 底部管理区：方向列表、技能点列表、卡片列表，提供增删改。
-- **AI Draft Studio**：保持独立屏，入口位于导航，用于与智能助理交互并批量写入卡片。
+## 3. 设计原则
+1. **耳朵优先，眼睛同步**
+   - 所有核心信息都提供语音播放；文本提供标题、一句话总结、要点 bullet；字号大、对比度高、段落短。
+   - 支持在播放音频时实时滚动文字稿，听不清可快速复读。
+2. **信息极少，但非常有用**
+   - 默认每天推送 3 条 AI 信息，统一回答三问：发生了什么？与我何干？需要/不需要做什么？
+   - 文本与音频结构完全一致，方便复习或转发。
+3. **非技术、非焦虑、非内疚**
+   - 避免技术术语堆砌与焦虑煽动，以“朋友讲故事”的语气提供安心建议。
+   - 默认提供“可以先不用做什么”的提醒，缓解压力。
+4. **生活化比喻**
+   - 用熟悉的生活类比解释抽象概念，例如“换了超大电池的手机”“能看图听声音的帮手”。
+5. **一键配置**
+   - 后端所有默认配置已准备好，只需填入火山引擎的统一 API Key，即可同时启用大模型 + 语音合成。
 
 ---
 
-## 5. 最小界面与交互
-- **方向列表**：卡片化展示名称、阶段、季度目标与基础统计。点击切换当前方向。
-- **技能点列**：按掌握等级排序，显示摘要与关联卡片数量，提供内联编辑。
-- **卡片列**：提供标题、正文与类型输入框，支持创建、编辑、删除。确认删除前弹出确认。
-- **方向详情**：展示技能点分组后的卡片列表，仅呈现卡片类型与正文摘要。
-- **AI Draft Studio**：输入素材后点击发送，右侧实时展示 GiftedChat 消息流；顶部选择偏好卡片类型与草稿数量；支持批量勾选草稿并写入方向。
-- 状态反馈：加载中显示指示器，失败展示提示文案。
+## 4. 关键使用场景
+### 场景 A：早晨家务或通勤
+- 唤醒词：“今天 AI 有什么事？”
+- 系统回应：“今天有 3 件跟你有关的 AI 新鲜事，我用 8 分钟讲完。要不要现在听？”
+- 用户确认后播放“今日 AI 电台”，屏幕同步展示关键 bullet。
+
+### 场景 B：伴侣分享重要资讯
+- 你在别处看到 AI 新闻后分享给 App。
+- 系统生成“老婆版讲解”：1 分钟音频 + 一句话“为何你可能会关心” + 大字 bullet 文本。
+- 你可以补充自己的语音/文字注释，加强情感连接。
+
+### 场景 C：社交媒体焦虑解除
+- 她刷到“AI 要取代所有人类工作”等标题后，打开「大家别慌」。
+- 模块提供事实核查、温和解释，并告诉她当下需要/不需要做什么，同时给出简短文字总结方便收藏。
 
 ---
 
-## 6. 智能助理执行流（React）
-- **核心组件**：`IntelligenceChat` 负责渲染 GiftedChat、分段控制和发送按钮，维持消息状态。
-- **数据流**：
-  1. 用户输入素材，通过 `handleSend` 追加到 GiftedChat。
-  2. `useGenerateCardDrafts` 触发 React Query mutation，调用 `/api/intelligence/card-drafts`。
-  3. 接收草稿后格式化为文本消息插入对话。
-  4. 错误时捕获异常并反馈提示。
-- **导入与写入**：`ImportWorkspace` 使用 `useImportPreview` 请求预览，选择草稿后调用 `useCreateMemoryCard` 将草稿写入方向。
-- **约束**：保留上述组件与 hook 的调用链，不移除 React Query mutation/append 流程。
+## 5. 信息架构与核心模块
+### 5.1 首页：「今天听点啥」
+- **顶部：今日一句话** — 概览今日三条内容类型。
+- **今日三条卡片** — 每条包含插画/图标、8–12 字白话标题、一句话“与我何干”，点击进入讲解页并播放音频，同时展示全文文字稿。
+- **底部按钮** — 「我没时间，帮我用 1 分钟说完今天」，播放 60 秒超简摘要并显示对应文字。
+
+### 5.2 单条内容页：「讲给我听」
+- **标题区** — 大字标题 + 一句话总结。
+- **主播放区** — 60–120 秒语音；播放时同步展示 bullet，支持自动滚动和可选字幕。
+- **三问三答结构**：
+  - 🧠 发生了什么？（2–3 bullet）
+  - 👀 这跟我有什么关系？（普通人视角）
+  - ✅ 我需要做什么？（可为“暂时不用做任何事”）
+- **反馈区** — “这个讲解觉得怎么样？”选项：听懂了 / 有点难 / 和我没关系，用于调整难度与相关性。
+
+### 5.3 「大家别慌」栏目
+- 收纳网络热点中的夸张标题。
+- 提供事实核查、趋势解释以及“当前建议/无需行动”的温柔提示。
+- 文本版与音频版同时输出，可转发给朋友或父母。
 
 ---
 
-## 7. 数据模型（TypeScript）
-```ts
-export type DirectionStage = 'explore' | 'shape' | 'attack' | 'stabilize';
-
-export interface Direction {
-  id: string;
-  name: string;
-  stage: DirectionStage;
-  quarterly_goal: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export type SkillLevel = 'unknown' | 'emerging' | 'working' | 'fluent';
-
-export interface SkillPoint {
-  id: string;
-  direction_id: string;
-  name: string;
-  summary: string | null;
-  level: SkillLevel;
-  created_at: string;
-  updated_at: string;
-}
-
-export type CardType = 'fact' | 'concept' | 'procedure' | 'claim';
-
-export interface MemoryCard {
-  id: string;
-  direction_id: string;
-  skill_point_id: string | null;
-  title: string;
-  body: string;
-  card_type: CardType;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateDirectionPayload {
-  name: string;
-  stage: DirectionStage;
-  quarterly_goal?: string | null;
-}
-
-export interface UpdateDirectionPayload {
-  name?: string;
-  stage?: DirectionStage;
-  quarterly_goal?: string | null;
-}
-
-export interface CreateSkillPointPayload {
-  name: string;
-  summary?: string | null;
-  level?: SkillLevel;
-}
-
-export interface UpdateSkillPointPayload {
-  name?: string;
-  summary?: string | null;
-  level?: SkillLevel;
-}
-
-export interface CreateMemoryCardPayload {
-  title: string;
-  body: string;
-  card_type: CardType;
-  skill_point_id?: string | null;
-}
-
-export interface UpdateMemoryCardPayload {
-  title?: string;
-  body?: string;
-  card_type?: CardType;
-  skill_point_id?: string | null;
-}
-
-export interface TreeCardSummary {
-  id: string;
-  skill_point_id: string | null;
-  title: string;
-  body: string;
-  card_type: CardType;
-}
-
-export interface TreeSkillPointBranch {
-  skill_point: SkillPoint;
-  card_count: number;
-  cards: TreeCardSummary[];
-}
-
-export interface TreeDirectionMetrics {
-  skill_point_count: number;
-  card_count: number;
-}
-
-export interface TreeDirectionBranch {
-  direction: Direction;
-  metrics: TreeDirectionMetrics;
-  skill_points: TreeSkillPointBranch[];
-  orphan_cards: TreeCardSummary[];
-}
-
-export interface TreeSnapshot {
-  directions: TreeDirectionBranch[];
-}
-```
+## 6. 「老婆模式」差异化能力
+1. **由你来选料**
+   - 管理端供伴侣使用，可调整资讯优先级（工作/生活/投资等），手动标记“她应该知道”。
+2. **老公注释**
+   - 为任意内容添加文字或语音备注，例如“这可能影响我们家庭理财”。
+3. **兴趣标签**
+   - 记录她关注的领域（教育/艺术/医疗等），系统自动偏向相关主题；文字稿可按兴趣分组归档。
 
 ---
 
-## 8. API 设计（OpenAPI 片段）
-```yaml
-paths:
-  /health:
-    get:
-      summary: Health check
-      responses:
-        '200': { description: Service is healthy }
-  /api/intelligence/card-drafts:
-    post:
-      summary: Generate memory card drafts
-      responses:
-        '200': { description: Drafts generated }
-  /api/import/preview:
-    post:
-      summary: Build import preview
-      responses:
-        '200': { description: Import preview generated }
-  /api/directions:
-    get:
-      summary: List directions
-      responses:
-        '200': { description: Directions fetched }
-    post:
-      summary: Create direction
-      responses:
-        '201': { description: Direction created }
-  /api/directions/{directionId}:
-    patch:
-      summary: Update direction
-      responses:
-        '200': { description: Direction updated }
-        '404': { description: Direction not found }
-    delete:
-      summary: Delete direction
-      responses:
-        '204': { description: Direction deleted }
-        '404': { description: Direction not found }
-  /api/directions/{directionId}/skill-points:
-    get:
-      summary: List skill points under direction
-      responses:
-        '200': { description: Skill points fetched }
-    post:
-      summary: Create skill point
-      responses:
-        '201': { description: Skill point created }
-  /api/skill-points/{skillPointId}:
-    patch:
-      summary: Update skill point
-      responses:
-        '200': { description: Skill point updated }
-        '404': { description: Skill point not found }
-    delete:
-      summary: Delete skill point
-      responses:
-        '204': { description: Skill point deleted }
-        '404': { description: Skill point not found }
-  /api/directions/{directionId}/cards:
-    get:
-      summary: List memory cards for direction
-      responses:
-        '200': { description: Memory cards fetched }
-    post:
-      summary: Create memory card
-      responses:
-        '201': { description: Memory card created }
-  /api/cards/{cardId}:
-    patch:
-      summary: Update memory card
-      responses:
-        '200': { description: Memory card updated }
-        '404': { description: Memory card not found }
-    delete:
-      summary: Delete memory card
-      responses:
-        '204': { description: Memory card deleted }
-        '404': { description: Memory card not found }
-  /api/tree:
-    get:
-      summary: Direction tree snapshot
-      responses:
-        '200': { description: Tree snapshot fetched }
-```
+## 7. 语音 + 文字双通道体验
+- **同步生成**：每条内容统一调用火山引擎大模型产出结构化文案，再调用 TTS 生成音频；文字稿与音频保持一致。
+- **字幕/文字稿**：播放音频时显示实时字幕，结束后提供全文文字稿，可保存或转发。
+- **离线复习**：在音频下方提供“一键复制要点”，方便对话、朋友圈或家庭群分享。
+- **辅助功能**：支持调节播放速度、开启/关闭字幕、切换不同音色（同一 API Key 即可）。
 
 ---
 
-## 9. 前后端架构
-
-### 前端架构
-- **框架**：React 18 + Vite（CSR 客户端渲染架构）
-- **路由**：React Router v6 实现单页应用导航
-- **状态管理**：
-  - TanStack Query (React Query) - 服务端状态管理与缓存
-  - Zustand - 轻量级客户端状态管理
-- **样式系统**：Tailwind CSS 提供 utility-first 响应式设计
-- **构建工具**：Vite 提供快速的开发服务器与优化的生产构建
-- **类型安全**：TypeScript 全覆盖，与后端 API 类型定义对齐
-- **UI 组件**：基于 Web 标准的组件库，包含卡片、表单、按钮等基础元素
-
-### 后端架构
-- **框架**：Rust + Axum
-- **数据库**：SQLite 持久化存储
-- **API 接口**：RESTful API 实现方向、技能点、卡片、树快照、智能助理草稿、导入预览等功能
-
-### 部署架构
-- **开发环境**：
-  - 前端：Vite dev server (端口 5173)
-  - 后端：Axum server (端口 3000)
-- **生产环境**：
-  - 前端：Nginx 提供静态资源服务 (端口 8080)
-  - 后端：Axum API server (端口 3000)
-  - 容器化：Docker Compose 编排前后端服务
+## 8. 信息获取与内容生产流程
+1. **机器初筛**
+   - 抓取最近 24–72 小时的 AI 新闻、博客、产品更新。
+   - LLM 评分：影响范围、时效性、普通用户相关度；过滤学术微更新与无信息噪音。
+2. **老婆化翻译**
+   - 模板化生成白话标题、生活类比、三问三答结构。
+   - 文案中同步生成“文字稿 + 音频文案”两份文本，确保输出一致。
+3. **音频合成**
+   - 调用火山引擎 TTS 生成自然语音，可选多种温柔音色；音频默认缓存至 `backend/static/audio/`。
+4. **人工把关（可选）**
+   - 管理端允许你删除不必要内容、标记重点，并添加“老公注释”。
 
 ---
 
-## 10. 测试与验收
+## 9. 技术实现概览（火山引擎一键配置）
+- **后端能力（Rust + Axum）**：
+  - 定时抓取 RSS/新闻源，聚合去重并缓存。
+  - 使用火山引擎大模型（豆包系列）生成结构化摘要；若缺少 Key，可回退为静态模板。
+  - 调用火山引擎语音合成服务，生成 MP3 音频；返回 JSON 中直接携带 Base64，方便任何终端播放。
+  - 所有默认配置写入 `.env.example`，只需设置 `VOLCENGINE_API_KEY` 即可启用完整流程。
+- **内容落地**：
+  - 文字稿写入 `backend/static/transcripts/`，音频写入 `backend/static/audio/`，均通过 `/static` 暴露给前端/H5/小程序。
+- **个性化逻辑**：
+  - 基于用户反馈与兴趣标签进行简单打分，调整推荐领域与讲解难度（后续迭代）。
 
-### 测试策略
-- **后端测试**：
-  - 单元测试：验证核心业务逻辑与数据仓储层
-  - 集成测试：验证 API 接口与数据库交互
-  - 编译检查：`cargo check` 确保类型安全
-- **前端测试**：
-  - 类型检查：`npm run typecheck` 验证 TypeScript 类型正确性
-  - 代码质量：`npm run lint` 确保代码规范
-  - 手动验收：在浏览器中测试完整用户流程
-- **端到端测试**：
-  - 开发环境：通过 Vite dev server 验证完整功能
-  - 生产环境：通过 `npm run build` + `npm run preview` 验证构建产物
+---
 
-### 验收清单
-1. **方向管理**：在 Tree 页面创建、编辑、删除方向，确认状态实时更新且概览同步变化
-2. **技能点管理**：在方向内增删改技能点，验证实时刷新与掌握等级调整
-3. **卡片管理**：基于方向与可选技能点创建、编辑、删除卡片，支持技能点筛选
-4. **智能助理**：在 AI Draft Studio 生成草稿并写入方向
-5. **数据导出**：从设置页触发导出，验证 JSON 数据完整性
-6. **树快照刷新**：验证手动刷新与自动刷新机制
-7. **响应式设计**：在不同屏幕尺寸下验证 UI 适配性
+## 10. 后续演进方向（V2+）
+- **一周一课**：慢速深度课，如《什么是大模型》《AI 时代要提升哪些能力》，同时输出音频 + PDF。
+- **夫妻共学模式**：共同收听后提供对话提示，鼓励交流与共同决策。
+- **防焦虑仪表盘**：显示“本周已听 5 个 AI 小故事”，传递安全感，而非进度压力。
+- **家人分享包**：一键导出“今日要点 + 音频链接”，方便你转发给父母或朋友。
 
-### TODO 完成列表
-- [x] **方向管理**：创建、编辑、删除方向，保持阶段与季度目标字段同步。
-- [x] **技能点管理**：在方向内增删改技能点，实时刷新掌握等级与摘要。
-- [x] **记忆卡片管理**：基于方向与可选技能点创建、编辑、删除卡片，支持技能点筛选。
-- [x] **方向树概览**：拉取 `/api/tree` 快照展示方向、技能点、未归属卡片统计。
-- [x] **树概览刷新**：在概览顶部提供刷新按钮，批量编辑或导入后可手动同步快照。
-- [x] **树更新时间**：在概览区展示快照生成时间，便于确认数据是否最新。
-- [x] **树数据新鲜度提示**：刷新时显示行内加载状态，且当快照超过 5 分钟未更新时以警示色标记。
-- [x] **设置导出**：汇总方向、技能点、卡片、证据（evidence）、标签（card_tags）并支持下载。
-- [x] **智能助理链路**：通过 `IntelligenceChat` 触发草稿生成、在 `ImportWorkspace` 中批量写入卡片。
-- [x] **Mock 数据对齐**：MSW/fixture 保持与后端验证一致，支持全链路演练。
+---
 
-### 验证方案
-1. **静态检查**
-   - 后端：`cargo check --manifest-path backend/services/api/Cargo.toml`
-   - 前端：`npm run lint --prefix frontend` 和 `npm run typecheck --prefix frontend`
-2. **开发环境验证**
-   - 运行 Vite 开发服务器：`npm run dev --prefix frontend`
-   - 在浏览器访问 `http://localhost:5173`
-   - 创建/更新/删除方向、技能点、卡片，观察 Tree Workspace 与列表联动
-   - 在 MemoryCardList 中切换技能点筛选，验证新增卡片继承当前筛选状态
-   - 操作完成后点击概览区刷新按钮，确认快照重新获取并反映最新数据
-   - 刷新后检查"上次更新"时间戳是否同步变化，并在快照超过 5 分钟未刷新时看到警示提示
-   - 观察刷新期间时间戳旁的行内加载指示
-3. **智能助理链路**
-   - 打开 AI Draft Studio，输入素材触发草稿生成，确认显示响应消息流
-   - 勾选草稿并写入方向，回到 Tree Workspace 检查卡片出现并匹配筛选
-4. **设置导出**
-   - 打开设置页面触发导出，确认导出的 JSON 包含 directions、skill_points、cards、evidence、card_tags 五类集合
-5. **生产构建验证**
-   - 执行 `npm run build --prefix frontend` 创建优化后的生产构建
-   - 执行 `npm run preview --prefix frontend` 预览生产版本
-   - 验证所有功能在生产环境下正常工作
-6. **Docker 部署验证**
-   - 运行 `./deploy.sh` 启动完整服务栈
-   - 访问 `http://localhost:8080` 验证前端应用
-   - 验证前端与后端 API 集成正常
+## 11. 一句话对她说
+“我在做一个小 App，以后每天花 5–10 分钟，用耳朵听几段小故事、顺便看大字要点，就能轻松知道 AI 世界发生了什么，跟我们生活有什么关系，听一听就行。”
+
+---
+
+## 12. 交付计划与验收标准
+
+### 12.1 里程碑计划（V1）
+1. **后端基础服务（第 1 周）**：完成 Rust 服务框架、配置加载、健康检查；验收：`GET /health` 返回 200。
+2. **资讯抓取 + 摘要（第 2 周）**：串联 RSS 抓取与大模型摘要，输出结构化 JSON；验收：`GET /api/digest/today` 在本地返回 3 条含文字摘要的记录。
+3. **语音合成闭环（第 3 周）**：对接火山 TTS，确保音频 Base64 返回；验收：接口响应中 `audio_base64` 字段可被播放器解码。
+4. **老婆模式配置（第 4 周）**：提供兴趣标签、人工标记等管理接口雏形（暂留 TODO）。
+
+### 12.2 验收清单
+- [x] `.env` 仅需配置 `VOLCENGINE_API_KEY` 即可跑通摘要 + 语音双通道。
+- [x] `cargo test` 全部通过，覆盖“抓取 → 摘要 → TTS → API”流程。
+- [x] 文档更新：README、后端 README、配置说明均反映 Rust 技术栈与一键配置策略。
+- [x] 返回数据满足「标题 + 三问三答 + 一分钟串讲 + 音频」结构。
+- [x] 无密钥时自动回退为“仅文字”模式，并在日志提示需配置密钥以启用语音。
+
+> 通过以上清单，即视为「AI 小耳朵」V1 技术底座交付完成，可进入前端与老婆模式后续迭代。
