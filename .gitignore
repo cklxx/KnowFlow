@@ -2,6 +2,10 @@
 node_modules/
 yarn.lock
 package-lock.json
+frontend/dist/
+frontend/playwright-report/
+frontend/test-results/
+*.tsbuildinfo
 
 # Python
 __pycache__/

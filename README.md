@@ -5,7 +5,7 @@
 ## 仓库结构
 
 - `backend/`：Rust + Axum 编写的服务端，整合 RSS 抓取、火山引擎大模型与语音合成。
-- `frontend/`：保留历史前端目录（暂未启用）。
+- `frontend/`：React + Vite 前端，展示每日摘要、音频与文字稿。
 - `知进（know_flow）_产品_技术设计_v_0.md`：产品体验与技术蓝图，描述「AI 小耳朵」的核心场景与语气。
 
 ## 快速开始
@@ -32,6 +32,16 @@
 - `GET /health`：健康检查
 - `GET /api/digest/today`：返回当天 3 条精选资讯，包含文字摘要、音频（Base64）与静态文件链接
 - `/static/...`：访问自动生成的语音与文字稿资源
+
+## 前端开发
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+开发服务器默认运行在 `http://localhost:5173`，通过 Vite 代理直接访问后端 API。若需指定其他后端地址，可创建 `.env` 并配置 `VITE_API_BASE_URL`。
 
 ## 核心能力
 
