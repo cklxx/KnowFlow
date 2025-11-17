@@ -218,9 +218,18 @@ async fn daily_digest_pipeline_falls_back_when_summary_invalid() {
         items[0]["text_summary"],
         "今天有一条和你相关的 AI 动态：AI 新工具上线。简单来说：这是一段摘要，用来测试。"
     );
-    assert_eq!(items[0]["core_insights"][0], "记住这条新闻揭示的关键变化，我们会帮你跟进后续。");
-    assert_eq!(items[0]["info_checks"][0], "来源为可靠媒体，但细节尚待更多渠道确认，我们会继续核实。");
-    assert_eq!(items[0]["more_thoughts"][0], "关注接下来是否有官方公告或专家分析，帮助判断影响范围。");
+    assert_eq!(
+        items[0]["core_insights"][0],
+        "记住这条新闻揭示的关键变化，我们会帮你跟进后续。"
+    );
+    assert_eq!(
+        items[0]["info_checks"][0],
+        "来源为可靠媒体，但细节尚待更多渠道确认，我们会继续核实。"
+    );
+    assert_eq!(
+        items[0]["more_thoughts"][0],
+        "关注接下来是否有官方公告或专家分析，帮助判断影响范围。"
+    );
     assert_eq!(
         items[0]["key_questions"][0]["question"],
         "这条消息最值得我关心的是什么？"
@@ -289,24 +298,35 @@ async fn daily_digest_pipeline_degrades_without_api_key() {
 
     let items = json["items"].as_array().unwrap();
     assert_eq!(items.len(), 1);
-    assert!(items[0]["headline"].as_str().unwrap().len() >= 1);
+    assert!(!items[0]["headline"].as_str().unwrap().is_empty());
     assert!(items[0]["audio_base64"].is_null());
     assert!(items[0]["audio_url"].is_null());
     assert!(items[0]["text_summary"]
         .as_str()
         .unwrap()
         .contains("AI 动态"));
-    assert!(items[0]["core_insights"].as_array().unwrap().len() >= 1);
-    assert!(items[0]["info_checks"].as_array().unwrap().len() >= 1);
-    assert!(items[0]["more_thoughts"].as_array().unwrap().len() >= 1);
-    assert!(items[0]["key_questions"].as_array().unwrap().len() >= 1);
+    assert!(!items[0]["core_insights"].as_array().unwrap().is_empty());
+    assert!(!items[0]["info_checks"].as_array().unwrap().is_empty());
+    assert!(!items[0]["more_thoughts"].as_array().unwrap().is_empty());
+    assert!(!items[0]["key_questions"].as_array().unwrap().is_empty());
     assert!(items[0]["transcript_url"].as_str().is_some());
 }
 
 async fn mock_feed(mock_server: &MockServer) {
-    let feed_body = format!(
-        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<feed xmlns=\"http://www.w3.org/2005/Atom\">\n<title>Test Feed</title>\n<id>feed</id>\n<updated>2024-07-01T00:00:00Z</updated>\n<entry>\n<id>tag:test</id>\n<title>AI 新工具上线</title>\n<updated>2024-07-01T00:00:00Z</updated>\n<summary>这是一段摘要，用来测试。</summary>\n<link href=\"https://example.com/article\"/>\n</entry>\n</feed>"
-    );
+    let feed_body = r#"<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+<title>Test Feed</title>
+<id>feed</id>
+<updated>2024-07-01T00:00:00Z</updated>
+<entry>
+<id>tag:test</id>
+<title>AI 新工具上线</title>
+<updated>2024-07-01T00:00:00Z</updated>
+<summary>这是一段摘要，用来测试。</summary>
+<link href="https://example.com/article"/>
+</entry>
+</feed>"#
+        .to_string();
 
     Mock::given(method("GET"))
         .and(path("/feed"))

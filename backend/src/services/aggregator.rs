@@ -1,6 +1,5 @@
 use crate::error::{AppError, Result};
 use crate::models::digest::Article;
-use chrono::{DateTime, Utc};
 use feed_rs::model::Entry;
 use feed_rs::parser;
 use reqwest::Client;
@@ -56,8 +55,8 @@ impl Aggregator {
         } else {
             entry
                 .links
-                .get(0)
-                .map(|l| l.href.clone())
+                .first()
+                .map(|link| link.href.clone())
                 .unwrap_or_else(|| feed_url.as_str().to_string())
         };
         let title = entry.title.as_ref()?.content.clone();
@@ -76,10 +75,7 @@ impl Aggregator {
             .or_else(|| entry.content.as_ref().and_then(|c| c.body.clone()))
             .unwrap_or_else(|| "这条资讯暂时没有摘要，但我们会在播客里解释给你听。".to_string());
 
-        let published_at = entry
-            .published
-            .or(entry.updated)
-            .map(|dt| DateTime::<Utc>::from(dt));
+        let published_at = entry.published.or(entry.updated);
 
         Some(Article {
             id,
