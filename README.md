@@ -1,80 +1,19 @@
-# AI 小耳朵 (KnowFlow)
+# AIHubMix 纯前端 Agent
 
-「AI 小耳朵」是一款帮助家人轻松跟上 AI 世界的日常耳边伙伴。每天 10 分钟，通过温柔的语音和可读的文字，让她知道 AI 发生了什么、和生活有什么关系、需要不要采取行动。
+本项目已重置为无后端依赖的单页应用，支持直接部署到 GitHub Pages。输入 AIHubMix API Key 即可通过官方 OpenAI 兼容接口进行对话，并可自动调用内置的前端搜索工具。
 
-## 仓库结构
+## 功能
+- **AIHubMix 对话**：调用 `https://api.aihubmix.com/v1/chat/completions`，默认模型可自行修改。
+- **工具调用**：提供 `search_web` 工具，模型触发后由前端执行搜索请求并将结果回传。
+- **可配置搜索**：默认使用公开的 DuckDuckGo Web API 代理端点，可替换自定义搜索 API 及密钥。
+- **本地保存配置**：浏览器本地保存 API Key、模型、系统提示词与搜索设置，随时一键重置。
+- **纯静态部署**：仅包含 `index.html`、`styles.css`、`app.js` 三个文件，可直接推送至 GitHub Pages 或任意静态托管。
 
-- `backend/`：Rust + Axum 编写的服务端，整合 RSS 抓取、火山引擎大模型与语音合成。
-- `frontend/`：React + Vite 前端，展示每日摘要、音频与文字稿。
-- `知进（know_flow）_产品_技术设计_v_0.md`：产品体验与技术蓝图，描述「AI 小耳朵」的核心场景与语气。
+## 使用方式
+1. 克隆仓库后直接打开 `index.html`，或将仓库配置为 GitHub Pages。
+2. 在页面顶部填写 **AIHubMix API Key**，根据需要调整模型名称和系统提示词（配置自动保存在浏览器中）。
+3. 如需自定义搜索服务，替换搜索端点及可选的搜索 API Key。
+4. 点击 **发送** 提问，Agent 会自动决定是否调用搜索工具并返回最终答案。
+5. 使用顶部的 **清空对话** 按钮重置历史，或使用 **重置配置** 恢复默认模型/提示词/搜索端点。
 
-## 快速开始
-
-> **只需配置一个火山引擎密钥**，即可同时启用大模型摘要与语音合成。
-
-1. 准备环境
-   ```bash
-   cd backend
-   cargo check
-   ```
-2. 配置密钥
-   ```bash
-   cp .env.example .env
-   # 编辑 .env，可填写 VOLCENGINE_API_KEY=xxxxx（留空则仅输出文字摘要）
-   ```
-3. 启动服务
-   ```bash
-   cargo run
-   ```
-
-启动后默认监听 `http://0.0.0.0:8080`，可用接口：
-
-- `GET /health`：健康检查
-- `GET /api/digest/today`：返回当天 3 条精选资讯，包含文字摘要、音频（Base64）与静态文件链接
-- `/static/...`：访问自动生成的语音与文字稿资源
-
-## 前端开发
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-开发服务器默认运行在 `http://localhost:5173`，通过 Vite 代理直接访问后端 API。若需指定其他后端地址，可创建 `.env` 并配置 `VITE_API_BASE_URL`。
-
-## 核心能力
-
-- **耳朵优先，文字辅助**：所有资讯均输出 60~120 秒语音稿，同时提供「一句话标题 + 三问三答」文字结构。
-- **火山引擎一键整合**：同一 `VOLCENGINE_API_KEY` 即可调用抖音系大模型与语音服务，默认模型与音色开箱即用，缺省则回退为「仅文字」模式。
-- **资讯精选**：预置 36Kr、The Verge 等 AI 资讯源，可在环境变量中追加或替换。
-- **温柔语气模板**：提示词以“懂行朋友”的语气编写，强调非焦虑、生活化比喻。
-- **静态资产落地**：每日生成的音频与文字稿会写入 `static/audio/`、`static/transcripts/` 并由 `/static` 路径直接提供。
-- **测试覆盖**：通过 `wiremock` 模拟火山接口，验证“抓取 → 总结 → 生成音频 → 对外接口”全链路。
-
-## 配置项
-
-`.env.example` 已包含所有可调参数：
-
-- `VOLCENGINE_API_KEY`（可选）：火山引擎通用 API Key，缺省时仅返回文字摘要。
-- `VOLCENGINE_BASE_URL`：API 访问地址，默认 `https://open.volcengineapi.com`。
-- `VOLCENGINE_CHAT_MODEL`：用于生成口语化摘要的模型，默认 `ep-llama-3-8b-instruct`。
-- `VOLCENGINE_TTS_VOICE`：语音合成音色，默认 `zh_female_xiaoyun`。
-- `RSS_FEEDS`：逗号分隔的 RSS 链接集合。
-- `DAILY_ITEM_COUNT`：每日推送的资讯条数，默认 3。
-- `BIND_ADDRESS`：服务绑定地址，默认 `0.0.0.0:8080`。
-- `ASSET_DIR`：语音与文字稿输出目录，默认 `static`。
-- `STATIC_URL_PREFIX`：静态资源访问前缀，默认 `/static`。
-
-## 测试
-
-```bash
-cd backend
-cargo test
-```
-
-## 后续路线
-
-- 新增“老婆模式”管理端，用于丈夫挑选/标记重点资讯。
-- 加入播放进度与听力反馈，驱动内容难度自适应。
-- 与移动端/小程序前端打通，实现真正的“双耳双读”体验。
+> 提示：AIHubMix 接口兼容 OpenAI Chat Completions 协议，更多细节可参考官方文档：https://docs.aihubmix.com/cn/quick-start
