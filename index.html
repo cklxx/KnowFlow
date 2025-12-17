@@ -1,78 +1,18 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AIHubMix 前端 Agent</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <div class="page">
-    <header class="header">
-      <div>
-        <p class="eyebrow">纯前端 · GitHub Pages 即刻可用</p>
-        <h1>AIHubMix Agent</h1>
-        <p class="subtitle">填入 API Key 即可调用 <a href="https://docs.aihubmix.com/cn/quick-start" target="_blank" rel="noreferrer">AIHubMix</a>，并附带前端搜索工具。</p>
-      </div>
-      <div class="config">
-        <label class="field">
-          <span>AIHubMix API Key</span>
-          <input id="api-key" type="password" placeholder="sk-..." autocomplete="off">
-        </label>
-        <label class="field">
-          <span>模型</span>
-          <input id="model" type="text" value="gpt-4o-mini">
-        </label>
-        <label class="field">
-          <span>系统提示词</span>
-          <input id="system-prompt" type="text" value="You are a helpful AI assistant.">
-        </label>
-        <label class="field">
-          <span>搜索 API 端点</span>
-          <input id="search-endpoint" type="text" value="https://ddg-webapp-aagd.vercel.app/search">
-        </label>
-        <label class="field">
-          <span>搜索 API Key (可选)</span>
-          <input id="search-key" type="password" placeholder="可留空" autocomplete="off">
-        </label>
-        <div class="tip">配置会保存在浏览器本地，不会上传。</div>
-      </div>
-    </header>
-
-    <main class="chat">
-      <div class="status-bar">
-        <div class="status" id="status">准备就绪，可直接提问。</div>
-        <button type="button" id="clear-chat" class="ghost">清空对话</button>
-      </div>
-      <section id="messages" class="messages"></section>
-      <form id="composer" class="composer">
-        <textarea id="user-input" rows="3" placeholder="向 Agent 提问，支持自动工具调用..." required></textarea>
-        <div class="composer-actions">
-          <button type="submit" id="send-btn">发送</button>
-          <button type="button" id="reset-config" class="ghost">重置配置</button>
-        </div>
-      </form>
-    </main>
-  </div>
-
-  <template id="message-template">
-    <div class="message">
-      <div class="role"></div>
-      <div class="content"></div>
-    </div>
-  </template>
-
-  <template id="tool-template">
-    <div class="tool-card">
-      <div class="tool-head">
-        <span class="tool-name"></span>
-        <span class="tool-status">调用中...</span>
-      </div>
-      <div class="tool-args"></div>
-      <pre class="tool-result"></pre>
-    </div>
-  </template>
-
-  <script src="app.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KnowFlow Agent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

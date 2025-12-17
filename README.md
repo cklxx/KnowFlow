@@ -1,23 +1,32 @@
-# AIHubMix 纯前端 Agent
+# KnowFlow 前端 Agent（Vite + ChatUI + TS）
 
-本项目已重置为无后端依赖的单页应用，支持直接部署到 GitHub Pages。输入 AIHubMix API Key 即可通过官方 OpenAI 兼容接口进行对话，并可自动调用内置的前端搜索工具。
+本项目提供无后端依赖的 Agent 体验，使用任意兼容 OpenAI Chat Completions 的接口，并通过前端搜索工具完成自主检索。界面基于 [ChatUI](https://github.com/alibaba/ChatUI) 组件库构建，并使用 Vite 打包为可直接部署的静态站点。
 
-## 功能
-- **AIHubMix 对话**：调用 `https://api.aihubmix.com/v1/chat/completions`，默认模型可自行修改。
-- **工具调用**：提供 `search_web` 工具，模型触发后由前端执行搜索请求并将结果回传。
-- **可配置搜索**：默认使用公开的 DuckDuckGo Web API 代理端点，可替换自定义搜索 API 及密钥。
-- **本地保存配置**：浏览器本地保存 API Key、模型、系统提示词与搜索设置，随时一键重置。
-- **纯静态部署**：仅包含 `index.html`、`styles.css`、`app.js` 三个文件，可直接推送至 GitHub Pages 或任意静态托管。
+## 功能亮点
+- **行业通用 Agent UI**：采用 ChatUI 提供的会话界面与工具卡片展示，工具调用/结果卡片使用 shadcn/ui Card 风格以提升观感。
+- **工具调用可视化**：当模型触发 `search_web` 工具时，会在界面上展示调用参数、执行状态与结果。
+- **可配置模型与搜索**：支持自定义模型名称、系统提示词、模型接口、搜索端点与可选搜索 API Key，并自动保存到本地。
+- **纯静态发布**：Vite 构建输出 `dist/` 目录，可直接部署到 GitHub Pages 或任意静态托管。
+- **TypeScript 支持**：前端逻辑与构建配置改为 TypeScript，便于类型约束与二次开发。
+
+## 开发与构建
+```bash
+npm install
+npm run dev    # 本地开发，默认端口 5173
+npm run test   # 运行 Vitest 单元测试
+npm run build  # 生成 dist/ 静态资源
+```
 
 ## 使用方式
-1. 克隆仓库后直接打开 `index.html`，或将仓库配置为 GitHub Pages。
-2. 在页面顶部填写 **AIHubMix API Key**，根据需要调整模型名称和系统提示词（配置自动保存在浏览器中）。
-3. 如需自定义搜索服务，替换搜索端点及可选的搜索 API Key。
-4. 点击 **发送** 提问，Agent 会自动决定是否调用搜索工具并返回最终答案。
-5. 使用顶部的 **清空对话** 按钮重置历史，或使用 **重置配置** 恢复默认模型/提示词/搜索端点。
+1. 本地或线上打开构建产物中的页面。
+2. 在左上方配置区域填写 **API Key** 与接口地址，可按需调整模型、系统提示词与搜索端点（配置自动本地保存）。
+3. 在聊天区直接对话，模型会自动决定是否触发搜索工具并返回最终答案。
+4. 使用「停止生成」「清空对话」或「重置配置」按钮管理会话。
 
-> 提示：AIHubMix 接口兼容 OpenAI Chat Completions 协议，更多细节可参考官方文档：https://docs.aihubmix.com/cn/quick-start
+## 部署到 GitHub Pages
+仓库提供 `deploy.yml` 工作流，会在推送到 `main` 后自动执行以下动作：
+1. 安装依赖并运行测试。
+2. 执行 `npm run build` 生成 `dist/`。
+3. 通过 GitHub Pages 发布构建产物。
 
-## GitHub Pages 部署
-
-仓库已内置 GitHub Actions 工作流，推送到 `main` 分支后会自动将 `index.html`、`styles.css` 和 `app.js` 打包到 `dist/` 并发布到 GitHub Pages。首次使用时请在仓库的 **Settings → Pages** 中将 Source 选择为“GitHub Actions”，后续推送即可自动更新站点。
+首次启用请在仓库的 **Settings → Pages** 中将 Source 设置为 “GitHub Actions”。

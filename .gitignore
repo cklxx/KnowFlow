@@ -1,6 +1,8 @@
 # Node
 node_modules/
 yarn.lock
+dist/
+.vite/
 frontend/dist/
 frontend/playwright-report/
 frontend/test-results/
