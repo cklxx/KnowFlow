@@ -17,3 +17,7 @@
 5. 使用顶部的 **清空对话** 按钮重置历史，或使用 **重置配置** 恢复默认模型/提示词/搜索端点。
 
 > 提示：AIHubMix 接口兼容 OpenAI Chat Completions 协议，更多细节可参考官方文档：https://docs.aihubmix.com/cn/quick-start
+
+## GitHub Pages 部署
+
+仓库已内置 GitHub Actions 工作流，推送到 `main` 分支后会自动将 `index.html`、`styles.css` 和 `app.js` 打包到 `dist/` 并发布到 GitHub Pages。首次使用时请在仓库的 **Settings → Pages** 中将 Source 选择为“GitHub Actions”，后续推送即可自动更新站点。
