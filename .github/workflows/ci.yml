@@ -5,22 +5,34 @@ on:
     branches: [main, work]
   pull_request:
 
+env:
+  NODE_VERSION: '20'
+
 jobs:
   static-site:
-    name: Validate static frontend
+    name: Build & Test Vite frontend
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Ensure required files exist
-        run: |
-          for f in index.html styles.css app.js README.md; do
-            if [ ! -f "$f" ]; then
-              echo "Missing $f" >&2
-              exit 1
-            fi
-          done
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
-      - name: Lint HTML for common issues
-        run: npx -y html-validate@8.18.2 index.html
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Build static site
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
